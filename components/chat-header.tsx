@@ -29,28 +29,28 @@ function PureChatHeader({
 
   const { width: windowWidth } = useWindowSize();
 
+  const handleNewChat = () => {
+    router.push('/');
+    router.refresh();
+  };
+
   return (
     <header className="flex sticky top-0 bg-background py-1.5 items-center px-2 md:px-2 gap-2">
       <SidebarToggle />
 
-      {(!open || windowWidth < 768) && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              className="order-2 md:order-1 md:px-2 px-2 md:h-fit ml-auto md:ml-0"
-              onClick={() => {
-                router.push('/');
-                router.refresh();
-              }}
-            >
-              <PlusIcon />
-              <span className="md:sr-only">New Chat</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>New Chat</TooltipContent>
-        </Tooltip>
-      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="outline"
+            className="order-2 md:order-1 md:px-2 px-2 md:h-fit ml-auto md:ml-0"
+            onClick={handleNewChat}
+          >
+            <PlusIcon />
+            <span className="md:hidden">New Chat</span>
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>New Chat</TooltipContent>
+      </Tooltip>
 
       {!isReadonly && (
         <ModelSelector
@@ -66,18 +66,6 @@ function PureChatHeader({
           className="order-1 md:order-3"
         />
       )}
-
-      <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          onClick={() => {
-            startNewChat();
-          }}
-        >
-          <PlusIcon />
-          New Chat
-        </Button>
-      </div>
     </header>
   );
 }

@@ -166,12 +166,13 @@ export async function POST(request: Request) {
 
                   if (type === 'text-delta') {
                     const { textDelta } = delta;
-
-                    draftText += textDelta;
-                    dataStream.writeData({
-                      type: 'text-delta',
-                      content: textDelta,
-                    });
+                    if (textDelta) {
+                      draftText += textDelta;
+                      dataStream.writeData({
+                        type: 'text-delta',
+                        content: textDelta,
+                      });
+                    }
                   }
                 }
 
@@ -196,7 +197,7 @@ export async function POST(request: Request) {
                     if (code) {
                       dataStream.writeData({
                         type: 'code-delta',
-                        content: code ?? '',
+                        content: code,
                       });
 
                       draftText = code;
@@ -207,23 +208,34 @@ export async function POST(request: Request) {
                 dataStream.writeData({ type: 'finish', content: '' });
               }
 
-              if (session.user?.id) {
-                await saveDocument({
-                  id,
-                  title,
-                  kind,
-                  content: draftText,
-                  userId: session.user.id,
-                });
-              }
+              if (session.user?.id && draftText.trim()) {
+                try {
+                  await saveDocument({
+                    id,
+                    title,
+                    kind,
+                    content: draftText,
+                    userId: session.user.id,
+                  });
 
-              return {
-                id,
-                title,
-                kind,
-                content:
-                  'A document was created and is now visible to the user.',
-              };
+                  return {
+                    id,
+                    title,
+                    kind,
+                    content: 'A document was created and is now visible to the user.',
+                  };
+                } catch (error) {
+                  console.error('Failed to save document:', error);
+                  return {
+                    error: 'Failed to save document',
+                  };
+                }
+              } else {
+                console.error('Failed to create document: Empty content or missing user');
+                return {
+                  error: 'Failed to create document due to empty content or missing user',
+                };
+              }
             },
           },
           updateDocument: {
@@ -415,29 +427,59 @@ export async function POST(request: Request) {
               const responseMessagesWithoutIncompleteToolCalls =
                 sanitizeResponseMessages(response.messages);
 
-              await saveMessages({
-                messages: responseMessagesWithoutIncompleteToolCalls.map(
-                  (message) => {
-                    const messageId = generateUUID();
+              if (!responseMessagesWithoutIncompleteToolCalls || responseMessagesWithoutIncompleteToolCalls.length === 0) {
+                console.log('No valid messages to save after sanitization');
+                return;
+              }
 
-                    if (message.role === 'assistant') {
-                      dataStream.writeMessageAnnotation({
-                        messageIdFromServer: messageId,
-                      });
-                    }
+              const messagesToSave = responseMessagesWithoutIncompleteToolCalls
+                .filter(message => {
+                  if (!message) return false;
+                  
+                  // Handle array content
+                  if (Array.isArray(message.content)) {
+                    return message.content.some(content => 
+                      (content.type === 'text' && content.text.length > 0) ||
+                      content.type === 'tool-call'
+                    );
+                  }
+                  
+                  // Handle string content
+                  return typeof message.content === 'string' && message.content.length > 0;
+                })
+                .map((message) => {
+                  const messageId = generateUUID();
 
-                    return {
-                      id: messageId,
-                      chatId: id,
-                      role: message.role,
-                      content: message.content,
-                      createdAt: new Date(),
-                    };
-                  },
-                ),
-              });
+                  if (message.role === 'assistant') {
+                    dataStream.writeMessageAnnotation({
+                      messageIdFromServer: messageId,
+                    });
+                  }
+
+                  // Convert array content to string if needed
+                  const content = Array.isArray(message.content) 
+                    ? message.content
+                        .filter(c => c.type === 'text')
+                        .map(c => c.text)
+                        .join(' ')
+                    : message.content;
+
+                  return {
+                    id: messageId,
+                    chatId: id,
+                    role: message.role,
+                    content: content || '',
+                    createdAt: new Date(),
+                  };
+                });
+
+              if (messagesToSave.length > 0) {
+                await saveMessages({ messages: messagesToSave });
+              } else {
+                console.log('No messages to save after mapping');
+              }
             } catch (error) {
-              console.error('Failed to save chat');
+              console.error('Failed to save chat:', error);
             }
           }
         },
