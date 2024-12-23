@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useMemo, useState, Children, isValidElement } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
@@ -91,8 +91,8 @@ const components: Partial<Components> = {
     );
   },
   p: ({ node, children, ...props }) => {
-    const isCodeBlock = React.Children.toArray(children).every(
-      child => React.isValidElement(child) && child.type === CodeBlock
+    const isCodeBlock = Children.toArray(children).every(
+      child => isValidElement(child) && child.type === CodeBlock
     );
     
     if (isCodeBlock) {
