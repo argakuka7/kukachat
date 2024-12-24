@@ -297,7 +297,24 @@ function normalizeContent(
     .trim();
 }
 
-export async function POST(request: Request) {
+// Add return type for executeWithRetry
+async function executeWithRetry(
+  operation: () => Promise<Response>,
+  retries: number,
+  delay: number
+): Promise<Response> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (retries === 0) {
+      throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return executeWithRetry(operation, retries - 1, delay * 2);
+  }
+}
+
+export async function POST(request: Request): Promise<Response> {
   const streamState: StreamState = {
     isStarted: false,
     isProcessing: false,
@@ -373,8 +390,8 @@ export async function POST(request: Request) {
       ],
     });
 
-    // Enhanced retry logic with state management
-    const executeWithRetry = async (retries: number) => {
+    // Enhanced retry logic with state management and proper typing
+    const executeStreamResponse = async (retries: number): Promise<Response> => {
       for (let i = 0; i < retries; i++) {
         try {
           const responsePromise = createDataStreamResponse({
@@ -827,7 +844,7 @@ export async function POST(request: Request) {
             },
           });
 
-          const timeoutPromise = new Promise((_, reject) => {
+          const timeoutPromise = new Promise<never>((_, reject) => {
             setTimeout(() => {
               streamState.error = 'Response timeout';
               reject(new Error('Response timeout'));
@@ -836,20 +853,48 @@ export async function POST(request: Request) {
 
           return await Promise.race([responsePromise, timeoutPromise]);
         } catch (error) {
-          if (i === retries - 1) throw error;
-          await new Promise(resolve => setTimeout(resolve, INITIAL_RETRY_DELAY * Math.pow(2, i))); // Exponential backoff
+          if (i === retries - 1) {
+            return new Response(
+              JSON.stringify({
+                error: error instanceof Error ? error.message : 'Unknown error',
+                recoverable: false
+              }),
+              { status: 500 }
+            );
+          }
+          await new Promise(resolve => setTimeout(resolve, INITIAL_RETRY_DELAY * Math.pow(2, i)));
         }
       }
+      
+      // Fallback response if all retries fail
+      return new Response(
+        JSON.stringify({
+          error: 'All retry attempts failed',
+          recoverable: false
+        }),
+        { status: 500 }
+      );
     };
 
-    return executeWithRetry(providerConfig.retries);
+    return await executeStreamResponse(providerConfig.retries);
   } catch (error) {
     console.error('Chat API error:', error instanceof Error ? error.message : String(error));
-    return new Response('Internal server error', { status: 500 });
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
@@ -859,23 +904,40 @@ export async function DELETE(request: Request) {
 
   const session = await auth();
 
-  if (!session || !session.user) {
+  if (!session?.user) {
     return new Response('Unauthorized', { status: 401 });
   }
 
   try {
     const chat = await getChatById({ id });
 
-    if (chat.userId !== session.user.id) {
+    if (!chat || chat.userId !== session.user.id) {
       return new Response('Unauthorized', { status: 401 });
     }
 
     await deleteChatById({ id });
 
-    return new Response('Chat deleted', { status: 200 });
+    return new Response(
+      JSON.stringify({ message: 'Chat deleted successfully' }),
+      { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   } catch (error) {
-    return new Response('An error occurred while processing your request', {
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
   }
 }
