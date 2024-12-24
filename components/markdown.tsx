@@ -4,41 +4,81 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './code-block';
 
+// Define component props types
+type MarkdownComponentProps = {
+  node?: any;
+  children?: React.ReactNode;
+  className?: string;
+  inline?: boolean;
+  href?: string;
+  [key: string]: any;
+};
+
 const components: Partial<Components> = {
-  // @ts-expect-error
-  code: CodeBlock,
-  ol: ({ node, children, ...props }) => {
+  code: ({ node, inline, className, children, ...props }: MarkdownComponentProps) => {
+    const match = /language-(\w+)/.exec(className || '');
+    const language = match ? match[1] : undefined;
+    
+    if (inline) {
+      return <code className={className} {...props}>{children}</code>;
+    }
+    
+    return (
+      <CodeBlock
+        node={node}
+        className={className}
+        language={language}
+        {...props}
+      >
+        {String(children || '').replace(/\n$/, '')}
+      </CodeBlock>
+    );
+  },
+  p: ({ node, children, ...props }: MarkdownComponentProps) => {
+    const childrenArray = Children.toArray(children);
+    // Check if paragraph contains only a code block
+    if (childrenArray.length === 1 && isValidElement(childrenArray[0]) && 
+        (childrenArray[0].type === CodeBlock || childrenArray[0].type === 'pre')) {
+      return <>{children}</>;
+    }
+    return <p className="mb-4" {...props}>{children}</p>;
+  },
+  pre: ({ children }: MarkdownComponentProps) => {
+    // Render pre tags directly without wrapping to avoid nesting issues
+    return <>{children}</>;
+  },
+  ol: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <ol className="list-decimal list-outside ml-4" {...props}>
         {children}
       </ol>
     );
   },
-  li: ({ node, children, ...props }) => {
+  ul: ({ children, ...props }: MarkdownComponentProps) => {
+    return (
+      <ul className="list-disc list-outside ml-4" {...props}>
+        {children}
+      </ul>
+    );
+  },
+  li: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <li className="py-1" {...props}>
         {children}
       </li>
     );
   },
-  ul: ({ node, children, ...props }) => {
-    return (
-      <ul className="list-decimal list-outside ml-4" {...props}>
-        {children}
-      </ul>
-    );
-  },
-  strong: ({ node, children, ...props }) => {
+  strong: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <span className="font-semibold" {...props}>
         {children}
       </span>
     );
   },
-  a: ({ node, children, ...props }) => {
+  a: ({ children, href, ...props }: MarkdownComponentProps) => {
     return (
-      // @ts-expect-error
       <Link
+        href={href || '#'}
         className="text-blue-500 hover:underline"
         target="_blank"
         rel="noreferrer"
@@ -48,58 +88,47 @@ const components: Partial<Components> = {
       </Link>
     );
   },
-  h1: ({ node, children, ...props }) => {
+  h1: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <h1 className="text-3xl font-semibold mt-6 mb-2" {...props}>
         {children}
       </h1>
     );
   },
-  h2: ({ node, children, ...props }) => {
+  h2: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <h2 className="text-2xl font-semibold mt-6 mb-2" {...props}>
         {children}
       </h2>
     );
   },
-  h3: ({ node, children, ...props }) => {
+  h3: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <h3 className="text-xl font-semibold mt-6 mb-2" {...props}>
         {children}
       </h3>
     );
   },
-  h4: ({ node, children, ...props }) => {
+  h4: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <h4 className="text-lg font-semibold mt-6 mb-2" {...props}>
         {children}
       </h4>
     );
   },
-  h5: ({ node, children, ...props }) => {
+  h5: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <h5 className="text-base font-semibold mt-6 mb-2" {...props}>
         {children}
       </h5>
     );
   },
-  h6: ({ node, children, ...props }) => {
+  h6: ({ children, ...props }: MarkdownComponentProps) => {
     return (
       <h6 className="text-sm font-semibold mt-6 mb-2" {...props}>
         {children}
       </h6>
     );
-  },
-  p: ({ node, children, ...props }) => {
-    const isCodeBlock = Children.toArray(children).every(
-      child => isValidElement(child) && child.type === CodeBlock
-    );
-    
-    if (isCodeBlock) {
-      return <>{children}</>;
-    }
-    
-    return <p {...props}>{children}</p>;
   }
 };
 
@@ -107,9 +136,11 @@ const remarkPlugins = [remarkGfm];
 
 const NonMemoizedMarkdown = ({ children }: { children: string }) => {
   return (
-    <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
-      {children}
-    </ReactMarkdown>
+    <div className="markdown-content">
+      <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+        {children}
+      </ReactMarkdown>
+    </div>
   );
 };
 
