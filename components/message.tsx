@@ -4,6 +4,7 @@ import type { ChatRequestOptions, Message } from 'ai';
 import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 
 import type { Vote } from '@/lib/db/schema';
 
@@ -23,6 +24,7 @@ import { DocumentPreview } from './document-preview';
 const PurePreviewMessage = ({
   chatId,
   message,
+  messages,
   vote,
   isLoading,
   setMessages,
@@ -31,6 +33,7 @@ const PurePreviewMessage = ({
 }: {
   chatId: string;
   message: Message;
+  messages: Message[];
   vote: Vote | undefined;
   isLoading: boolean;
   setMessages: (
@@ -81,24 +84,7 @@ const PurePreviewMessage = ({
             )}
 
             {message.content && mode === 'view' && (
-              <div className="flex flex-row gap-2 items-start">
-                {message.role === 'user' && !isReadonly && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
-                        onClick={() => {
-                          setMode('edit');
-                        }}
-                      >
-                        <PencilEditIcon />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Edit message</TooltipContent>
-                  </Tooltip>
-                )}
-
+              <div className="flex flex-col gap-2">
                 <div
                   className={cn('flex flex-col gap-4', {
                     'bg-primary text-primary-foreground px-3 py-2 rounded-xl':
@@ -107,6 +93,45 @@ const PurePreviewMessage = ({
                 >
                   <Markdown>{message.content as string}</Markdown>
                 </div>
+
+                {message.role === 'user' && !isReadonly && (
+                  <div className="flex justify-end gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
+                          onClick={async () => {
+                            // Delete messages after this one
+                            const index = messages.findIndex((m) => m.id === message.id);
+                            if (index !== -1) {
+                              setMessages(messages.slice(0, index + 1));
+                              await reload();
+                            }
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Regenerate response</TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="px-2 h-fit rounded-full text-muted-foreground opacity-0 group-hover/message:opacity-100"
+                          onClick={() => {
+                            setMode('edit');
+                          }}
+                        >
+                          <PencilEditIcon />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit message</TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
               </div>
             )}
 

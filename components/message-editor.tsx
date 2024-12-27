@@ -32,6 +32,10 @@ export function MessageEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    setDraftContent(message.content);
+  }, [message]);
+
+  useEffect(() => {
     if (textareaRef.current) {
       adjustHeight();
     }
@@ -56,6 +60,7 @@ export function MessageEditor({
         className="bg-transparent outline-none overflow-hidden resize-none !text-base rounded-xl w-full"
         value={draftContent}
         onChange={handleInput}
+        autoFocus
       />
 
       <div className="flex flex-row gap-2 justify-end">
