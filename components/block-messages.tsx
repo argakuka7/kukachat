@@ -43,6 +43,7 @@ function PureBlockMessages({
           chatId={chatId}
           key={message.id}
           message={message}
+          messages={messages}
           isLoading={isLoading && index === messages.length - 1}
           vote={
             votes

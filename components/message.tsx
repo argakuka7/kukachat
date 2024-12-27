@@ -235,6 +235,7 @@ export const PreviewMessage = memo(
   (prevProps, nextProps) => {
     if (prevProps.isLoading !== nextProps.isLoading) return false;
     if (prevProps.message.content !== nextProps.message.content) return false;
+    if (prevProps.messages !== nextProps.messages) return false;
     if (
       !equal(
         prevProps.message.toolInvocations,
