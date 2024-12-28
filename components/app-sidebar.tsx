@@ -3,7 +3,7 @@
 import type { User } from 'next-auth';
 import { useRouter } from 'next/navigation';
 
-import { PlusIcon } from '@/components/icons';
+import { PlusIcon, MessageIcon, PaletteIcon } from '@/components/icons';
 import { SidebarHistory } from '@/components/sidebar-history';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import { Button } from '@/components/ui/button';
@@ -53,12 +53,33 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   <PlusIcon />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent align="end">New Chat</TooltipContent>
+              <TooltipContent>New Chat</TooltipContent>
             </Tooltip>
           </div>
         </SidebarMenu>
+
+        <div className="flex flex-col gap-2 px-2 py-2">
+          <button 
+            onClick={() => {
+              alert("Search feature coming soon!");
+            }} 
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted"
+          >
+            <MessageIcon />
+            <span>Search</span>
+          </button>
+          <button 
+            onClick={() => {
+              alert("AI Art feature coming soon!");
+            }}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted"
+          >
+            <PaletteIcon />
+            <span>AI Art</span>
+          </button>
+        </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="pb-8">
         <SidebarHistory user={user} />
       </SidebarContent>
       <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
