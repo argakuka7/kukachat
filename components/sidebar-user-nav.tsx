@@ -24,6 +24,12 @@ export function SidebarUserNav({ user }: { user: User }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
+        <div className="flex flex-col gap-1 px-3 py-2 text-sm text-muted-foreground bg-sidebar-accent/20 rounded-md">
+          <span>You are basic user</span>
+          <span className="font-medium text-primary">Upgrade to PRO</span>
+        </div>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10">
