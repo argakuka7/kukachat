@@ -20,6 +20,7 @@ import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
+import { ImagePreview } from './image-preview';
 
 const PurePreviewMessage = ({
   chatId,
@@ -178,6 +179,8 @@ const PurePreviewMessage = ({
                             result={result}
                             isReadonly={isReadonly}
                           />
+                        ) : toolName === 'generateImage' ? (
+                          <ImagePreview images={result.images} />
                         ) : (
                           <pre>{JSON.stringify(result, null, 2)}</pre>
                         )}

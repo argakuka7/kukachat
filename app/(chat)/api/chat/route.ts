@@ -1,3 +1,11 @@
+import { fal } from '@fal-ai/client';
+import { uploadImageToSupabase } from '@/lib/supabase';
+
+// Configure FAL.ai client
+fal.config({
+  credentials: process.env.FAL_KEY,
+});
+
 import {
   type Message,
   type CoreMessage,
@@ -14,6 +22,7 @@ import {
   streamText,
 } from 'ai';
 import { z } from 'zod';
+import { put } from '@vercel/blob';
 
 import { auth } from '@/app/(auth)/auth';
 import { customModel } from '@/lib/ai';
@@ -47,7 +56,8 @@ type AllowedTools =
   | 'createDocument'
   | 'updateDocument'
   | 'requestSuggestions'
-  | 'getWeather';
+  | 'getWeather'
+  | 'generateImage';
 
 const blocksTools: AllowedTools[] = [
   'createDocument',
@@ -56,8 +66,14 @@ const blocksTools: AllowedTools[] = [
 ];
 
 const weatherTools: AllowedTools[] = ['getWeather'];
+const imageTools: AllowedTools[] = ['generateImage'];
 
-const allTools: AllowedTools[] = [...blocksTools, ...weatherTools];
+const allTools: AllowedTools[] = [...blocksTools, ...weatherTools, ...imageTools];
+
+console.log('\n=== Available Tools ===');
+console.log('Image Tools:', imageTools);
+console.log('All Tools:', allTools);
+console.log('=== End Available Tools ===\n');
 
 // Provider-specific configurations
 const PROVIDER_CONFIGS = {
@@ -314,6 +330,60 @@ async function executeWithRetry(
   }
 }
 
+// Add type definitions at the top
+type ImageSize = 'square' | 'portrait_4_3' | 'landscape_4_3' | 'portrait_16_9' | 'landscape_16_9' | 'square_hd';
+
+interface FalImage {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+interface FalResponse {
+  data: {
+    images: Array<FalImage>;
+  };
+}
+
+// Update ToolResult interface to include new properties
+interface ToolResult {
+  error?: string;
+  images?: Array<{
+    url: string;
+    width: number;
+    height: number;
+    error?: string;
+  }>;
+  partialSuccess?: boolean;
+  totalGenerated?: number;
+  successfullyProcessed?: number;
+  errorDetails?: {
+    message: string;
+    timestamp: string;
+    prompt: string;
+    requestedImages: number;
+  };
+}
+
+interface Tool {
+  name: string;
+  description: string;
+  parameters: z.ZodObject<any>;
+  execute: (args: any) => Promise<ToolResult>;
+}
+
+const customModelWithLogging = {
+  ...customModel,
+  invoke: async (params: any) => {
+    console.log('\n=== AI Processing Debug ===');
+    console.log('Input messages:', params.messages);
+    console.log('Available tools:', params.tools);
+    console.log('=== End AI Processing Debug ===\n');
+    
+    return await customModel.invoke(params);
+  }
+};
+
 export async function POST(request: Request): Promise<Response> {
   const streamState: StreamState = {
     isStarted: false,
@@ -329,6 +399,11 @@ export async function POST(request: Request): Promise<Response> {
       modelId,
     }: { id: string; messages: Array<Message>; modelId: string } =
       await request.json();
+
+    console.log('\n=== Request Debug ===');
+    console.log('Latest message:', messages[messages.length - 1]);
+    console.log('Model ID:', modelId);
+    console.log('=== End Request Debug ===\n');
 
     const session = await auth();
 
@@ -410,328 +485,265 @@ export async function POST(request: Request): Promise<Response> {
                   content: userMessageId,
                 });
 
-                const result = await retryWithBackoff(async () => 
-                  streamText({
-                    model: customModel(model.apiIdentifier),
-                    system: systemPrompt,
-                    messages: validMessages,
-                    maxSteps: 5,
-                    experimental_activeTools: allTools,
-                    tools: {
-                      getWeather: {
-                        description: 'Get the current weather at a location',
-                        parameters: z.object({
-                          latitude: z.number(),
-                          longitude: z.number(),
-                        }),
-                        execute: async ({ latitude, longitude }) => {
-                          const response = await fetch(
-                            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&hourly=temperature_2m&daily=sunrise,sunset&timezone=auto`,
-                          );
+                const tools = {
+                  createDocument: {
+                    name: 'createDocument',
+                    description: 'Create a document for writing text or code',
+                    parameters: z.object({
+                      title: z.string(),
+                      kind: z.enum(['text', 'code']),
+                    }),
+                    execute: async ({ title, kind }) => {
+                      const id = generateUUID();
+                      let draftText = '';
 
-                          const weatherData = await response.json();
-                          return weatherData;
-                        },
-                      },
-                      createDocument: {
-                        description:
-                          'Create a document for a writing activity. This tool will call other functions that will generate the contents of the document based on the title and kind.',
-                        parameters: z.object({
-                          title: z.string(),
-                          kind: z.enum(['text', 'code']),
-                        }),
-                        execute: async ({ title, kind }) => {
-                          const id = generateUUID();
-                          let draftText = '';
+                      dataStream.writeData({
+                        type: 'id',
+                        content: id,
+                      });
 
-                          dataStream.writeData({
-                            type: 'id',
-                            content: id,
-                          });
+                      dataStream.writeData({
+                        type: 'title',
+                        content: title,
+                      });
 
-                          dataStream.writeData({
-                            type: 'title',
-                            content: title,
-                          });
+                      dataStream.writeData({
+                        type: 'kind',
+                        content: kind,
+                      });
 
-                          dataStream.writeData({
-                            type: 'kind',
-                            content: kind,
-                          });
+                      dataStream.writeData({
+                        type: 'clear',
+                        content: '',
+                      });
 
-                          dataStream.writeData({
-                            type: 'clear',
-                            content: '',
-                          });
+                      if (kind === 'text') {
+                        const { fullStream } = streamText({
+                          model: customModel(model.apiIdentifier),
+                          system: 'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',
+                          prompt: title,
+                        });
 
-                          if (kind === 'text') {
-                            const { fullStream } = streamText({
-                              model: customModel(model.apiIdentifier),
-                              system:
-                                'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',
-                              prompt: title,
-                            });
-
-                            for await (const delta of fullStream) {
-                              const { type } = delta;
-
-                              if (type === 'text-delta') {
-                                const { textDelta } = delta;
-                                if (textDelta) {
-                                  draftText += textDelta;
-                                  dataStream.writeData({
-                                    type: 'text-delta',
-                                    content: textDelta,
-                                  });
-                                }
-                              }
-                            }
-
-                            dataStream.writeData({ type: 'finish', content: '' });
-                          } else if (kind === 'code') {
-                            const { fullStream } = streamObject({
-                              model: customModel(model.apiIdentifier),
-                              system: codePrompt,
-                              prompt: title,
-                              schema: z.object({
-                                code: z.string(),
-                              }),
-                            });
-
-                            for await (const delta of fullStream) {
-                              const { type } = delta;
-
-                              if (type === 'object') {
-                                const { object } = delta;
-                                const { code } = object;
-
-                                if (code) {
-                                  dataStream.writeData({
-                                    type: 'code-delta',
-                                    content: code,
-                                  });
-
-                                  draftText = code;
-                                }
-                              }
-                            }
-
-                            dataStream.writeData({ type: 'finish', content: '' });
-                          }
-
-                          if (session.user?.id && draftText.trim()) {
-                            try {
-                              await saveDocument({
-                                id,
-                                title,
-                                kind,
-                                content: draftText,
-                                userId: session.user.id,
+                        for await (const delta of fullStream) {
+                          const { type } = delta;
+                          if (type === 'text-delta') {
+                            const { textDelta } = delta;
+                            if (textDelta) {
+                              draftText += textDelta;
+                              dataStream.writeData({
+                                type: 'text-delta',
+                                content: textDelta,
                               });
-
-                              return {
-                                id,
-                                title,
-                                kind,
-                                content: 'A document was created and is now visible to the user.',
-                              };
-                            } catch (error) {
-                              console.error('Failed to save document:', error);
-                              return {
-                                error: 'Failed to save document',
-                              };
                             }
-                          } else {
-                            console.error('Failed to create document: Empty content or missing user');
-                            return {
-                              error: 'Failed to create document due to empty content or missing user',
-                            };
                           }
-                        },
-                      },
-                      updateDocument: {
-                        description: 'Update a document with the given description.',
-                        parameters: z.object({
-                          id: z.string().describe('The ID of the document to update'),
-                          description: z
-                            .string()
-                            .describe('The description of changes that need to be made'),
-                        }),
-                        execute: async ({ id, description }) => {
-                          const document = await getDocumentById({ id });
+                        }
+                      } else if (kind === 'code') {
+                        const { fullStream } = streamObject({
+                          model: customModel(model.apiIdentifier),
+                          system: codePrompt,
+                          prompt: title,
+                          schema: z.object({
+                            code: z.string(),
+                          }),
+                        });
 
-                          if (!document) {
-                            return {
-                              error: 'Document not found',
-                            };
+                        for await (const delta of fullStream) {
+                          const { type } = delta;
+                          if (type === 'object') {
+                            const { object } = delta;
+                            const { code } = object;
+                            if (code) {
+                              dataStream.writeData({
+                                type: 'code-delta',
+                                content: code,
+                              });
+                              draftText = code;
+                            }
                           }
+                        }
+                      }
 
-                          const { content: currentContent } = document;
-                          let draftText = '';
-
-                          dataStream.writeData({
-                            type: 'clear',
-                            content: document.title,
+                      if (session.user?.id && draftText.trim()) {
+                        try {
+                          await saveDocument({
+                            id,
+                            title,
+                            kind,
+                            content: draftText,
+                            userId: session.user.id,
                           });
-
-                          if (document.kind === 'text') {
-                            const { fullStream } = streamText({
-                              model: customModel(model.apiIdentifier),
-                              system: updateDocumentPrompt(currentContent),
-                              prompt: description,
-                              experimental_providerMetadata: {
-                                openai: {
-                                  prediction: {
-                                    type: 'content',
-                                    content: currentContent,
-                                  },
-                                },
-                              },
-                            });
-
-                            for await (const delta of fullStream) {
-                              const { type } = delta;
-
-                              if (type === 'text-delta') {
-                                const { textDelta } = delta;
-
-                                draftText += textDelta;
-                                dataStream.writeData({
-                                  type: 'text-delta',
-                                  content: textDelta,
-                                });
-                              }
-                            }
-
-                            dataStream.writeData({ type: 'finish', content: '' });
-                          } else if (document.kind === 'code') {
-                            const { fullStream } = streamObject({
-                              model: customModel(model.apiIdentifier),
-                              system: updateDocumentPrompt(currentContent),
-                              prompt: description,
-                              schema: z.object({
-                                code: z.string(),
-                              }),
-                            });
-
-                            for await (const delta of fullStream) {
-                              const { type } = delta;
-
-                              if (type === 'object') {
-                                const { object } = delta;
-                                const { code } = object;
-
-                                if (code) {
-                                  dataStream.writeData({
-                                    type: 'code-delta',
-                                    content: code ?? '',
-                                  });
-
-                                  draftText = code;
-                                }
-                              }
-                            }
-
-                            dataStream.writeData({ type: 'finish', content: '' });
-                          }
-
-                          if (session.user?.id) {
-                            await saveDocument({
-                              id,
-                              title: document.title,
-                              content: draftText,
-                              kind: document.kind,
-                              userId: session.user.id,
-                            });
-                          }
 
                           return {
                             id,
-                            title: document.title,
-                            kind: document.kind,
-                            content: 'The document has been updated successfully.',
+                            title,
+                            kind,
+                            content: 'A document was created and is now visible to the user.',
                           };
-                        },
-                      },
-                      requestSuggestions: {
-                        description: 'Request suggestions for a document',
-                        parameters: z.object({
-                          documentId: z
-                            .string()
-                            .describe('The ID of the document to request edits'),
-                        }),
-                        execute: async ({ documentId }) => {
-                          const document = await getDocumentById({ id: documentId });
-
-                          if (!document || !document.content) {
-                            return {
-                              error: 'Document not found',
-                            };
-                          }
-
-                          const suggestions: Array<
-                            Omit<Suggestion, 'userId' | 'createdAt' | 'documentCreatedAt'>
-                          > = [];
-
-                          const { elementStream } = streamObject({
-                            model: customModel(model.apiIdentifier),
-                            system:
-                              'You are a help writing assistant. Given a piece of writing, please offer suggestions to improve the piece of writing and describe the change. It is very important for the edits to contain full sentences instead of just words. Max 5 suggestions.',
-                            prompt: document.content,
-                            output: 'array',
-                            schema: z.object({
-                              originalSentence: z
-                                .string()
-                                .describe('The original sentence'),
-                              suggestedSentence: z
-                                .string()
-                                .describe('The suggested sentence'),
-                              description: z
-                                .string()
-                                .describe('The description of the suggestion'),
-                            }),
-                          });
-
-                          for await (const element of elementStream) {
-                            const suggestion = {
-                              originalText: element.originalSentence,
-                              suggestedText: element.suggestedSentence,
-                              description: element.description,
-                              id: generateUUID(),
-                              documentId: documentId,
-                              isResolved: false,
-                            };
-
-                            dataStream.writeData({
-                              type: 'suggestion',
-                              content: suggestion,
-                            });
-
-                            suggestions.push(suggestion);
-                          }
-
-                          if (session.user?.id) {
-                            const userId = session.user.id;
-
-                            await saveSuggestions({
-                              suggestions: suggestions.map((suggestion) => ({
-                                ...suggestion,
-                                userId,
-                                createdAt: new Date(),
-                                documentCreatedAt: document.createdAt,
-                              })),
-                            });
-                          }
-
+                        } catch (error) {
+                          console.error('Failed to save document:', error);
                           return {
-                            id: documentId,
-                            title: document.title,
-                            kind: document.kind,
-                            message: 'Suggestions have been added to the document',
+                            error: 'Failed to save document',
                           };
-                        },
-                      },
+                        }
+                      } else {
+                        console.error('Failed to create document: Empty content or missing user');
+                        return {
+                          error: 'Failed to create document due to empty content or missing user',
+                        };
+                      }
                     },
+                  } as Tool,
+                  getWeather: {
+                    name: 'getWeather',
+                    description: 'Get the current weather at a location',
+                    parameters: z.object({
+                      latitude: z.number(),
+                      longitude: z.number(),
+                    }),
+                    execute: async ({ latitude, longitude }: { latitude: number; longitude: number }) => {
+                      try {
+                        const response = await fetch(
+                          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&hourly=temperature_2m&daily=sunrise,sunset&timezone=auto`,
+                        );
+                        const weatherData = await response.json();
+                        return weatherData;
+                      } catch (error) {
+                        console.error('Weather API error:', error);
+                        return { error: 'Failed to fetch weather data' };
+                      }
+                    },
+                  } as Tool,
+                  generateImage: {
+                    name: 'generateImage',
+                    description: 'Generate images using FLUX AI model based on a text prompt',
+                    parameters: z.object({
+                      prompt: z.string().describe('The text prompt to generate images from'),
+                      num_images: z.number().default(1).describe('Number of images to generate'),
+                      image_size: z.enum(['square', 'portrait_4_3', 'landscape_4_3', 'portrait_16_9', 'landscape_16_9', 'square_hd'])
+                        .default('landscape_4_3')
+                        .describe('Size/aspect ratio of the generated image'),
+                    }),
+                    execute: async ({ prompt, num_images = 1, image_size = 'landscape_4_3' }: {
+                      prompt: string;
+                      num_images?: number;
+                      image_size?: ImageSize;
+                    }): Promise<ToolResult> => {
+                      try {
+                        console.log('\n=== GENERATE IMAGE EXECUTION START ===');
+                        console.log('Parameters:', { prompt, num_images, image_size });
+                        
+                        if (!process.env.FAL_KEY) {
+                          console.error('FAL_KEY is missing in environment variables');
+                          throw new Error('FAL_KEY is not configured');
+                        }
+
+                        if (!prompt.trim()) {
+                          throw new Error('Empty prompt provided');
+                        }
+
+                        fal.config({
+                          credentials: process.env.FAL_KEY,
+                        });
+
+                        console.log('Making request to FAL.ai with model: fal-ai/flux/schnell');
+                        
+                        const result = await fal.subscribe('fal-ai/flux/schnell', {
+                          input: {
+                            prompt,
+                            image_size,
+                            num_images,
+                            sync_mode: true
+                          },
+                          pollInterval: 1000,
+                          onQueueUpdate: (update) => {
+                            console.log('Generation status:', update);
+                          }
+                        });
+
+                        if (!result.data?.images?.length) {
+                          throw new Error('No images generated by FAL.ai');
+                        }
+
+                        const savedImages = await Promise.all(
+                          result.data.images.map(async (image: FalImage, index: number) => {
+                            try {
+                              if (!image.url) {
+                                throw new Error(`Image ${index + 1} has no URL`);
+                              }
+
+                              const publicUrl = await uploadImageToSupabase(image.url);
+                              if (!publicUrl) {
+                                throw new Error(`Failed to upload image ${index + 1} to Supabase`);
+                              }
+
+                              return {
+                                url: publicUrl,
+                                width: image.width || 1024,
+                                height: image.height || 768,
+                              };
+                            } catch (uploadError) {
+                              console.error(`Upload error for image ${index + 1}:`, uploadError);
+                              // Return the original FAL.ai URL as fallback
+                              return {
+                                url: image.url,
+                                width: image.width || 1024,
+                                height: image.height || 768,
+                                error: uploadError instanceof Error ? uploadError.message : 'Upload failed'
+                              };
+                            }
+                          })
+                        );
+
+                        const successfulImages = savedImages.filter(img => !img.error);
+                        if (successfulImages.length === 0) {
+                          throw new Error('Failed to process any images successfully');
+                        }
+
+                        return { 
+                          images: successfulImages,
+                          partialSuccess: successfulImages.length < result.data.images.length,
+                          totalGenerated: result.data.images.length,
+                          successfullyProcessed: successfulImages.length
+                        };
+                      } catch (error) {
+                        console.error('Fatal error in image generation:', error);
+                        const errorMessage = error instanceof Error ? error.message : 'Unknown error in image generation';
+                        return {
+                          error: errorMessage,
+                          errorDetails: {
+                            message: errorMessage,
+                            timestamp: new Date().toISOString(),
+                            prompt,
+                            requestedImages: num_images
+                          },
+                          images: [] // Empty array for type consistency
+                        };
+                      }
+                    },
+                  } as Tool,
+                };
+
+                // Add debug logging for tool registration
+                console.log('\n=== TOOLS CONFIGURATION ===');
+                console.log('Registered tools:', Object.keys(tools));
+                console.log('Active tools:', ['createDocument', 'getWeather', 'generateImage']);
+                console.log('=== END TOOLS CONFIGURATION ===\n');
+
+                const result = await retryWithBackoff(async () => 
+                  streamText({
+                    model: customModel(model.apiIdentifier),
+                    system: systemPrompt + '\nYou have access to the following tools:\n' +
+                      '1. createDocument - Use this to create text documents or code examples\n' +
+                      '2. generateImage - Use this to generate images from text descriptions\n' +
+                      '3. getWeather - Use this to get weather information for a specific location\n\n' +
+                      'Please choose the appropriate tool based on the user\'s request:\n' +
+                      '- For writing text or generating code examples, use createDocument\n' +
+                      '- For creating images, use generateImage\n' +
+                      '- For weather information, use getWeather',
+                    messages: validMessages,
+                    tools,
+                    experimental_activeTools: ['createDocument', 'getWeather', 'generateImage'],
+                    maxSteps: 5,
                     onFinish: async ({ response }) => {
                       if (session.user?.id) {
                         try {
@@ -794,7 +806,7 @@ export async function POST(request: Request): Promise<Response> {
                               messages: messagesToSave,
                               timestamp: Date.now()
                             });
-                            
+
                             dataStream.writeData({
                               type: 'saved',
                               content: { state: 'saved' }

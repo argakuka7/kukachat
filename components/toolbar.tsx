@@ -36,6 +36,7 @@ import {
   StopIcon,
   SummarizeIcon,
   TerminalIcon,
+  ImageIcon,
 } from './icons';
 import { BlockKind } from './block';
 
@@ -46,7 +47,8 @@ type ToolProps = {
     | 'adjust-reading-level'
     | 'code-review'
     | 'add-comments'
-    | 'add-logs';
+    | 'add-logs'
+    | 'generate-image';
   description: string;
   icon: JSX.Element;
   selectedTool: string | null;
@@ -94,13 +96,19 @@ const Tool = ({
     if (selectedTool !== type) {
       setSelectedTool(type);
     } else {
-      if (type === 'final-polish') {
+      if (type === 'generate-image') {
+        append({
+          id: nanoid(),
+          role: 'user',
+          content: 'Generate an image based on the text above.',
+        });
+        setSelectedTool(null);
+      } else if (type === 'final-polish') {
         append({
           role: 'user',
           content:
             'Please add final polish and check for grammar, add section titles for better structure, and ensure everything reads smoothly.',
         });
-
         setSelectedTool(null);
       } else if (type === 'request-suggestions') {
         append({
@@ -108,21 +116,18 @@ const Tool = ({
           content:
             'Please add suggestions you have that could improve the writing.',
         });
-
         setSelectedTool(null);
       } else if (type === 'add-comments') {
         append({
           role: 'user',
           content: 'Please add comments to explain the code.',
         });
-
         setSelectedTool(null);
       } else if (type === 'add-logs') {
         append({
           role: 'user',
           content: 'Please add logs to help debug the code.',
         });
-
         setSelectedTool(null);
       }
     }
@@ -293,7 +298,8 @@ const toolsByBlockKind: Record<
       | 'adjust-reading-level'
       | 'code-review'
       | 'add-comments'
-      | 'add-logs';
+      | 'add-logs'
+      | 'generate-image';
     description: string;
     icon: JSX.Element;
   }>
@@ -301,8 +307,13 @@ const toolsByBlockKind: Record<
   text: [
     {
       type: 'final-polish',
-      description: 'Add final polish',
+      description: 'Polish the text',
       icon: <PenIcon />,
+    },
+    {
+      type: 'request-suggestions',
+      description: 'Request suggestions',
+      icon: <MessageIcon />,
     },
     {
       type: 'adjust-reading-level',
@@ -310,16 +321,21 @@ const toolsByBlockKind: Record<
       icon: <SummarizeIcon />,
     },
     {
-      type: 'request-suggestions',
-      description: 'Request suggestions',
-      icon: <MessageIcon />,
+      type: 'generate-image',
+      description: 'Generate image from text',
+      icon: <ImageIcon />,
     },
   ],
   code: [
     {
+      type: 'code-review',
+      description: 'Review code',
+      icon: <CodeIcon />,
+    },
+    {
       type: 'add-comments',
       description: 'Add comments',
-      icon: <CodeIcon />,
+      icon: <FileIcon />,
     },
     {
       type: 'add-logs',
