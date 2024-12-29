@@ -1,14 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
+// Initialize Supabase clients
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
+// Client for public operations
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Admin client for operations that need elevated privileges
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 async function retryUpload(
   filename: string, 
@@ -21,7 +26,8 @@ async function retryUpload(
   for (let i = 0; i < maxRetries; i++) {
     try {
       console.log(`Upload attempt ${i + 1} of ${maxRetries}...`);
-      const { data, error } = await supabase.storage
+      // Use admin client for uploads
+      const { data, error } = await supabaseAdmin.storage
         .from('images')
         .upload(filename, blob, options);
 
@@ -47,44 +53,38 @@ async function retryUpload(
 export async function uploadImageToSupabase(imageUrl: string): Promise<string> {
   try {
     console.log('Starting Supabase upload for image:', imageUrl);
+    
+    // Validate service role key
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured');
+    }
 
-    // Fetch the image from the URL
-    console.log('Fetching image from URL...');
     const response = await fetch(imageUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch image: ${response.statusText}`);
     }
-    
+
     const blob = await response.blob();
-    console.log('Image fetched successfully, size:', blob.size);
-
-    // Generate a unique filename
-    const timestamp = Date.now();
-    const randomId = Math.random().toString(36).substring(7);
-    const filename = `generated-images/${timestamp}-${randomId}.png`;
-    console.log('Generated filename:', filename);
-
-    // Upload to Supabase Storage with retry
-    console.log('Uploading to Supabase...');
-    const { data, error } = await retryUpload(filename, blob, {
-      contentType: 'image/png',
+    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const options = {
       cacheControl: '3600',
       upsert: false
-    });
+    };
 
+    const { data, error } = await retryUpload(filename, blob, options);
+    
     if (error) {
-      console.error('All upload attempts failed:', error);
+      console.error('Error in uploadImageToSupabase:', error);
       throw error;
     }
 
-    console.log('Upload successful:', data);
+    if (!data?.path) {
+      throw new Error('Upload successful but no path returned');
+    }
 
-    // Get the public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('images')
-      .getPublicUrl(filename);
-
-    console.log('Generated public URL:', publicUrl);
+    const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${data.path}`;
+    console.log('Successfully uploaded image to:', publicUrl);
+    
     return publicUrl;
   } catch (error) {
     console.error('Error in uploadImageToSupabase:', error);

@@ -372,17 +372,8 @@ interface Tool {
   execute: (args: any) => Promise<ToolResult>;
 }
 
-const customModelWithLogging = {
-  ...customModel,
-  invoke: async (params: any) => {
-    console.log('\n=== AI Processing Debug ===');
-    console.log('Input messages:', params.messages);
-    console.log('Available tools:', params.tools);
-    console.log('=== End AI Processing Debug ===\n');
-    
-    return await customModel.invoke(params);
-  }
-};
+// Use model directly without logging middleware
+const model = customModel('gpt-4');
 
 export async function POST(request: Request): Promise<Response> {
   const streamState: StreamState = {
