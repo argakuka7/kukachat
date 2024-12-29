@@ -333,15 +333,13 @@ async function executeWithRetry(
 // Add type definitions at the top
 type ImageSize = 'square' | 'portrait_4_3' | 'landscape_4_3' | 'portrait_16_9' | 'landscape_16_9' | 'square_hd';
 
-interface FalImage {
-  url: string;
-  width?: number;
-  height?: number;
-}
-
 interface FalResponse {
   data: {
-    images: Array<FalImage>;
+    images: Array<{
+      url: string;
+      width?: number;
+      height?: number;
+    }>;
   };
 }
 
@@ -656,9 +654,9 @@ export async function POST(request: Request): Promise<Response> {
                         }
 
                         const savedImages = await Promise.all(
-                          result.data.images.map(async (image: FalImage, index: number) => {
+                          result.data.images.map(async (image, index: number) => {
                             try {
-                              if (!image.url) {
+                              if (!image?.url) {
                                 throw new Error(`Image ${index + 1} has no URL`);
                               }
 
@@ -667,18 +665,22 @@ export async function POST(request: Request): Promise<Response> {
                                 throw new Error(`Failed to upload image ${index + 1} to Supabase`);
                               }
 
+                              // Ensure we have valid numbers for width and height
+                              const width = typeof image.width === 'number' ? image.width : 1024;
+                              const height = typeof image.height === 'number' ? image.height : 768;
+
                               return {
                                 url: publicUrl,
-                                width: image.width || 1024,
-                                height: image.height || 768,
+                                width,
+                                height,
                               };
                             } catch (uploadError) {
                               console.error(`Upload error for image ${index + 1}:`, uploadError);
-                              // Return the original FAL.ai URL as fallback
+                              // Return fallback with original URL
                               return {
                                 url: image.url,
-                                width: image.width || 1024,
-                                height: image.height || 768,
+                                width: typeof image.width === 'number' ? image.width : 1024,
+                                height: typeof image.height === 'number' ? image.height : 768,
                                 error: uploadError instanceof Error ? uploadError.message : 'Upload failed'
                               };
                             }
