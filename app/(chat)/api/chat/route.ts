@@ -272,7 +272,10 @@ function isValidMessageContent(content: unknown): content is string | (TextPart 
 function processMessagesForProvider(messages: CoreMessage[], provider: string): CoreAssistantMessage[] {
   return messages
     .filter((msg): msg is CoreAssistantMessage => 
-      msg.role === 'assistant' && isValidMessageContent(msg.content)
+      msg.role === 'assistant' && 
+      isValidMessageContent(msg.content) &&
+      // Skip empty messages after normalization
+      normalizeContent(msg.content).length > 0
     )
     .map(msg => ({
       role: 'assistant' as const,
@@ -303,14 +306,23 @@ function normalizeContent(
   content: string | (TextPart | ToolCallPart)[]
 ): string {
   if (typeof content === 'string') {
+    // Skip confirmation messages for images
+    if (content.toLowerCase().startsWith('here is')) {
+      return '';
+    }
     return content.trim();
   }
   
-  return content
-    .filter((c): c is TextPart => c.type === 'text' && 'text' in c)
-    .map(c => c.text)
-    .join(' ')
-    .trim();
+  const textParts = content
+    .filter((c): c is TextPart => 
+      c.type === 'text' && 
+      'text' in c &&
+      // Skip any confirmation messages
+      !c.text.toLowerCase().startsWith('here is')
+    )
+    .map(c => c.text);
+
+  return textParts.join(' ').trim();
 }
 
 // Add return type for executeWithRetry
@@ -729,10 +741,7 @@ export async function POST(request: Request): Promise<Response> {
                       '1. createDocument - Use this to create text documents or code examples\n' +
                       '2. generateImage - Use this to generate images from text descriptions\n' +
                       '3. getWeather - Use this to get weather information for a specific location\n\n' +
-                      'Please choose the appropriate tool based on the user\'s request:\n' +
-                      '- For writing text or generating code examples, use createDocument\n' +
-                      '- For creating images, use generateImage\n' +
-                      '- For weather information, use getWeather',
+                      'Please choose the appropriate tool based on the user\'s request.',
                     messages: validMessages,
                     tools,
                     experimental_activeTools: ['createDocument', 'getWeather', 'generateImage'],
@@ -781,8 +790,10 @@ export async function POST(request: Request): Promise<Response> {
 
                               const normalizedContent = normalizeContent(message.content);
                               
-                              // Use enhanced stream handling
-                              handleStreamWithRecovery(dataStream, normalizedContent, 'text', streamState);
+                              // Skip streaming for tool calls to prevent duplicates
+                              if (!message.content.toString().includes('generateImage')) {
+                                handleStreamWithRecovery(dataStream, normalizedContent, 'text', streamState);
+                              }
 
                               return {
                                 id: messageId,
