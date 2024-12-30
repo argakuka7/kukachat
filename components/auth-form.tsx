@@ -1,5 +1,3 @@
-import Form from 'next/form';
-
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
@@ -8,14 +6,18 @@ export function AuthForm({
   children,
   defaultEmail = '',
 }: {
-  action: NonNullable<
-    string | ((formData: FormData) => void | Promise<void>) | undefined
-  >;
+  action: (formData: FormData) => void | Promise<void>;
   children: React.ReactNode;
   defaultEmail?: string;
 }) {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    await action(formData);
+  };
+
   return (
-    <Form action={action} className="flex flex-col gap-4 px-4 sm:px-16">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-4 sm:px-16">
       <div className="flex flex-col gap-2">
         <Label
           htmlFor="email"
@@ -55,6 +57,6 @@ export function AuthForm({
       </div>
 
       {children}
-    </Form>
+    </form>
   );
 }

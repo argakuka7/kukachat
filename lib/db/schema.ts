@@ -11,19 +11,21 @@ import {
   boolean,
 } from 'drizzle-orm/pg-core';
 
-export const user = pgTable('User', {
+export const user = pgTable('users', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
-  email: varchar('email', { length: 64 }).notNull(),
+  email: varchar('email', { length: 64 }).notNull().unique(),
   password: varchar('password', { length: 64 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 export type User = InferSelectModel<typeof user>;
 
-export const chat = pgTable('Chat', {
+export const chat = pgTable('chats', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
-  createdAt: timestamp('createdAt').notNull(),
+  createdAt: timestamp('created_at').notNull(),
   title: text('title').notNull(),
-  userId: uuid('userId')
+  userId: uuid('user_id')
     .notNull()
     .references(() => user.id),
   visibility: varchar('visibility', { enum: ['public', 'private'] })
@@ -33,28 +35,28 @@ export const chat = pgTable('Chat', {
 
 export type Chat = InferSelectModel<typeof chat>;
 
-export const message = pgTable('Message', {
+export const message = pgTable('messages', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
-  chatId: uuid('chatId')
+  chatId: uuid('chat_id')
     .notNull()
     .references(() => chat.id),
   role: varchar('role').notNull(),
   content: json('content').notNull(),
-  createdAt: timestamp('createdAt').notNull(),
+  createdAt: timestamp('created_at').notNull(),
 });
 
 export type Message = InferSelectModel<typeof message>;
 
 export const vote = pgTable(
-  'Vote',
+  'votes',
   {
-    chatId: uuid('chatId')
+    chatId: uuid('chat_id')
       .notNull()
       .references(() => chat.id),
-    messageId: uuid('messageId')
+    messageId: uuid('message_id')
       .notNull()
       .references(() => message.id),
-    isUpvoted: boolean('isUpvoted').notNull(),
+    isUpvoted: boolean('is_upvoted').notNull(),
   },
   (table) => {
     return {
@@ -66,16 +68,16 @@ export const vote = pgTable(
 export type Vote = InferSelectModel<typeof vote>;
 
 export const document = pgTable(
-  'Document',
+  'documents',
   {
     id: uuid('id').notNull().defaultRandom(),
-    createdAt: timestamp('createdAt').notNull(),
+    createdAt: timestamp('created_at').notNull(),
     title: text('title').notNull(),
     content: text('content'),
-    kind: varchar('text', { enum: ['text', 'code'] })
+    kind: varchar('kind', { enum: ['text', 'code'] })
       .notNull()
       .default('text'),
-    userId: uuid('userId')
+    userId: uuid('user_id')
       .notNull()
       .references(() => user.id),
   },
@@ -89,19 +91,19 @@ export const document = pgTable(
 export type Document = InferSelectModel<typeof document>;
 
 export const suggestion = pgTable(
-  'Suggestion',
+  'suggestions',
   {
     id: uuid('id').notNull().defaultRandom(),
-    documentId: uuid('documentId').notNull(),
-    documentCreatedAt: timestamp('documentCreatedAt').notNull(),
-    originalText: text('originalText').notNull(),
-    suggestedText: text('suggestedText').notNull(),
+    documentId: uuid('document_id').notNull(),
+    documentCreatedAt: timestamp('document_created_at').notNull(),
+    originalText: text('original_text').notNull(),
+    suggestedText: text('suggested_text').notNull(),
     description: text('description'),
-    isResolved: boolean('isResolved').notNull().default(false),
-    userId: uuid('userId')
+    isResolved: boolean('is_resolved').notNull().default(false),
+    userId: uuid('user_id')
       .notNull()
       .references(() => user.id),
-    createdAt: timestamp('createdAt').notNull(),
+    createdAt: timestamp('created_at').notNull(),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.id] }),

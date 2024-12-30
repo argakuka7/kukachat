@@ -51,21 +51,22 @@ export interface RegisterActionState {
     | 'invalid_data';
 }
 
-export const register = async (
-  _: RegisterActionState,
-  formData: FormData,
-): Promise<RegisterActionState> => {
+export async function register(
+  prevState: RegisterActionState,
+  formData: FormData
+): Promise<RegisterActionState> {
   try {
     const validatedData = authFormSchema.parse({
       email: formData.get('email'),
       password: formData.get('password'),
     });
 
-    const [user] = await getUser(validatedData.email);
+    const [existingUser] = await getUser(validatedData.email);
 
-    if (user) {
-      return { status: 'user_exists' } as RegisterActionState;
+    if (existingUser) {
+      return { status: 'user_exists' };
     }
+
     await createUser(validatedData.email, validatedData.password);
     await signIn('credentials', {
       email: validatedData.email,
@@ -75,10 +76,12 @@ export const register = async (
 
     return { status: 'success' };
   } catch (error) {
+    console.error('Registration error:', error);
+    
     if (error instanceof z.ZodError) {
       return { status: 'invalid_data' };
     }
 
     return { status: 'failed' };
   }
-};
+}

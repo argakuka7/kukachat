@@ -4,6 +4,7 @@ import { genSaltSync, hashSync } from 'bcrypt-ts';
 import { and, asc, desc, eq, gt, gte } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { v4 as uuidv4 } from 'uuid';
 
 import {
   user,
@@ -23,8 +24,26 @@ import { BlockKind } from '@/components/block';
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
+const client = postgres(process.env.POSTGRES_URL!, {
+  max: 20,
+  idle_timeout: 20,
+  connect_timeout: 10,
+});
 const db = drizzle(client);
+
+// Test database connection
+async function testConnection() {
+  try {
+    await client`SELECT 1`;
+    console.log('Database connection successful');
+  } catch (error) {
+    console.error('Database connection failed:', error);
+    throw error;
+  }
+}
+
+// Call this when the app starts
+testConnection().catch(console.error);
 
 export async function getUser(email: string): Promise<Array<User>> {
   try {
@@ -40,9 +59,16 @@ export async function createUser(email: string, password: string) {
   const hash = hashSync(password, salt);
 
   try {
-    return await db.insert(user).values({ email, password: hash });
+    console.log('Attempting to create user with email:', email);
+    const result = await db.insert(user).values({ 
+      id: uuidv4(),
+      email, 
+      password: hash,
+    });
+    console.log('User created successfully:', result);
+    return result;
   } catch (error) {
-    console.error('Failed to create user in database');
+    console.error('Failed to create user in database. Error:', error);
     throw error;
   }
 }
