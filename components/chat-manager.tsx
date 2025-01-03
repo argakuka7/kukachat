@@ -14,7 +14,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 interface Chat {
   id: string
   title: string
+  createdAt: Date
   folderId?: string
+  userId: string
+  visibility: 'private' | 'public'
+}
+
+interface ChatFolder {
+  id: string
+  name: string
+  userId: string
+  createdAt: Date
 }
 
 interface ChatManagerProps {
