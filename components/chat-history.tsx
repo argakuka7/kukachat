@@ -4,15 +4,13 @@ import { useState } from 'react'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search } from 'lucide-react'
-import { ChatFolderManager } from './chat-folder-manager'
-import { ChatManager } from './chat-manager'
+import type { Chat } from '@/lib/db/schema'
 
 interface ChatHistoryProps {
   chats: Chat[]
-  folders: ChatFolder[]
 }
 
-export function ChatHistory({ chats, folders }: ChatHistoryProps) {
+export function ChatHistory({ chats }: ChatHistoryProps) {
   const [searchQuery, setSearchQuery] = useState('')
   
   const filteredChats = chats.filter(chat =>
@@ -31,8 +29,6 @@ export function ChatHistory({ chats, folders }: ChatHistoryProps) {
           />
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         </div>
-        
-        <ChatFolderManager />
       </div>
 
       <div className="flex-1 overflow-auto p-4">

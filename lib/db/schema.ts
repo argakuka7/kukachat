@@ -115,3 +115,14 @@ export const suggestion = pgTable(
 );
 
 export type Suggestion = InferSelectModel<typeof suggestion>;
+
+export const chatFolder = pgTable('chat_folders', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  name: text('name').notNull(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type ChatFolder = InferSelectModel<typeof chatFolder>;
