@@ -265,96 +265,40 @@ export const RouteIcon = ({ size = 16 }: { size?: number }) => {
   );
 };
 
-export const FileIcon = ({ size = 16 }: { size?: number }) => {
+export const FileIcon = ({ size = 16, className }: { size?: number; className?: string }) => {
   return (
     <svg
       height={size}
-      strokeLinejoin="round"
-      viewBox="0 0 16 16"
       width={size}
+      viewBox="0 0 16 16"
+      className={className}
       style={{ color: 'currentcolor' }}
     >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M14.5 13.5V6.5V5.41421C14.5 5.149 14.3946 4.89464 14.2071 4.70711L9.79289 0.292893C9.60536 0.105357 9.351 0 9.08579 0H8H3H1.5V1.5V13.5C1.5 14.8807 2.61929 16 4 16H12C13.3807 16 14.5 14.8807 14.5 13.5ZM13 13.5V6.5H9.5H8V5V1.5H3V13.5C3 14.0523 3.44772 14.5 4 14.5H12C12.5523 14.5 13 14.0523 13 13.5ZM9.5 5V2.12132L12.3787 5H9.5ZM5.13 5.00062H4.505V6.25062H5.13H6H6.625V5.00062H6H5.13ZM4.505 8H5.13H11H11.625V9.25H11H5.13H4.505V8ZM5.13 11H4.505V12.25H5.13H11H11.625V11H11H5.13Z"
+        d="M3 1.5V14.5H13V5.41421L9.08579 1.5H3ZM2 1C2 0.447715 2.44772 0 3 0H9.58579C9.851 0 10.1054 0.105357 10.2929 0.292893L13.7929 3.79289C13.9804 3.98043 14.0858 4.23478 14.0858 4.5V14.5C14.0858 15.0523 13.638 15.5 13.0858 15.5H3C2.44772 15.5 2 15.0523 2 14.5V1ZM9 2.20711L12.2929 5.5H9V2.20711Z"
         fill="currentColor"
       />
     </svg>
   );
 };
 
-export const LoaderIcon = ({ size = 16 }: { size?: number }) => {
+export const LoaderIcon = ({ size = 16, className }: { size?: number; className?: string }) => {
   return (
     <svg
       height={size}
-      strokeLinejoin="round"
-      viewBox="0 0 16 16"
       width={size}
+      viewBox="0 0 16 16"
+      className={className}
       style={{ color: 'currentcolor' }}
     >
-      <g clipPath="url(#clip0_2393_1490)">
-        <path d="M8 0V4" stroke="currentColor" strokeWidth="1.5" />
-        <path
-          opacity="0.5"
-          d="M8 16V12"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.9"
-          d="M3.29773 1.52783L5.64887 4.7639"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.1"
-          d="M12.7023 1.52783L10.3511 4.7639"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.4"
-          d="M12.7023 14.472L10.3511 11.236"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.6"
-          d="M3.29773 14.472L5.64887 11.236"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.2"
-          d="M15.6085 5.52783L11.8043 6.7639"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.7"
-          d="M0.391602 10.472L4.19583 9.23598"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.3"
-          d="M15.6085 10.4722L11.8043 9.2361"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path
-          opacity="0.8"
-          d="M0.391602 5.52783L4.19583 6.7639"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-      </g>
-      <defs>
-        <clipPath id="clip0_2393_1490">
-          <rect width="16" height="16" fill="white" />
-        </clipPath>
-      </defs>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8 1.5C4.41015 1.5 1.5 4.41015 1.5 8C1.5 11.5899 4.41015 14.5 8 14.5C11.5899 14.5 14.5 11.5899 14.5 8H16C16 12.4183 12.4183 16 8 16C3.58172 16 0 12.4183 0 8C0 3.58172 3.58172 0 8 0V1.5Z"
+        fill="currentColor"
+      />
     </svg>
   );
 };
@@ -1058,7 +1002,7 @@ export const ClockRewind = ({ size = 16 }: { size?: number }) => {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M7.96452 2.5C11.0257 2.5 13.5 4.96643 13.5 8C13.5 11.0336 11.0257 13.5 7.96452 13.5C6.12055 13.5 4.48831 12.6051 3.48161 11.2273L3.03915 10.6217L1.828 11.5066L2.27046 12.1122C3.54872 13.8617 5.62368 15 7.96452 15C11.8461 15 15 11.87 15 8C15 4.13001 11.8461 1 7.96452 1C5.06835 1 2.57851 2.74164 1.5 5.23347V3.75V3H0V3.75V7.25C0 7.66421 0.335786 8 0.75 8H3.75H4.5V6.5H3.75H2.63724C3.29365 4.19393 5.42843 2.5 7.96452 2.5ZM8.75 5.25V4.5H7.25V5.25V7.8662C7.25 8.20056 7.4171 8.51279 7.6953 8.69825L9.08397 9.62404L9.70801 10.0401L10.5401 8.79199L9.91603 8.37596L8.75 7.59861V5.25Z"
+        d="M7.96452 2.5C11.0257 2.5 13.5 4.96643 13.5 8C13.5 11.0336 11.0257 13.5 7.96452 13.5C6.12055 13.5 4.48831 12.6051 3.48161 11.2273L3.03915 10.6217L1.828 11.5066L2.27046 12.1122C3.54872 13.8617 5.62368 15 7.96452 15C11.8461 15 15 11.87 15 8C15 4.13001 11.8461 1 7.96452 1C5.62368 1 3.54872 2.74164 2.27046 4.49116L1.828 5.09678L3.03915 6L3.48161 5.39446C4.48831 4.01665 6.12055 2.5 7.96452 2.5ZM8.75 5.25V4.5H7.25V5.25V7.8662C7.25 8.20056 7.4171 8.51279 7.6953 8.69825L9.08397 9.62404L9.70801 10.0401L10.5401 8.79199L9.91603 8.37596L8.75 7.59861V5.25Z"
         fill="currentColor"
       ></path>
     </svg>

@@ -8,12 +8,15 @@ import { auth } from '@/app/(auth)/auth';
 const FileSchema = z.object({
   file: z
     .instanceof(Blob)
-    .refine((file) => file.size <= 5 * 1024 * 1024, {
-      message: 'File size should be less than 5MB',
+    .refine((file) => {
+      // Increase size limit for PDFs to 10MB, keep 5MB for images
+      const maxSize = file.type === 'application/pdf' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+      return file.size <= maxSize;
+    }, {
+      message: 'File size should be less than 5MB for images or 10MB for PDFs',
     })
-    // Update the file type based on the kind of files you want to accept
-    .refine((file) => ['image/jpeg', 'image/png'].includes(file.type), {
-      message: 'File type should be JPEG or PNG',
+    .refine((file) => ['image/jpeg', 'image/png', 'application/pdf'].includes(file.type), {
+      message: 'File type should be JPEG, PNG, or PDF',
     }),
 });
 

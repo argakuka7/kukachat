@@ -162,6 +162,20 @@ function PureMultimodalInput({
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(event.target.files || []);
+      const maxSize = 10 * 1024 * 1024; // 10MB for PDFs, 5MB for images
+
+      // Validate files before upload
+      const invalidFiles = files.filter(file => {
+        const isPdf = file.type === 'application/pdf';
+        const maxAllowedSize = isPdf ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+        return file.size > maxAllowedSize;
+      });
+
+      if (invalidFiles.length > 0) {
+        const fileNames = invalidFiles.map(f => f.name).join(', ');
+        toast.error(`File(s) too large: ${fileNames}. PDFs must be under 10MB, images under 5MB.`);
+        return;
+      }
 
       setUploadQueue(files.map((file) => file.name));
 
@@ -172,18 +186,32 @@ function PureMultimodalInput({
           (attachment) => attachment !== undefined,
         );
 
+        if (successfullyUploadedAttachments.length > 0) {
+          toast.success(`Successfully uploaded ${successfullyUploadedAttachments.length} file(s)`);
+        }
+
         setAttachments((currentAttachments) => [
           ...currentAttachments,
           ...successfullyUploadedAttachments,
         ]);
       } catch (error) {
         console.error('Error uploading files!', error);
+        toast.error('Failed to upload files. Please try again.');
       } finally {
         setUploadQueue([]);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''; // Reset input for future uploads
+        }
       }
     },
     [setAttachments],
   );
+
+  const handleRemoveAttachment = useCallback((attachmentToRemove: Attachment) => {
+    setAttachments((currentAttachments) =>
+      currentAttachments.filter((attachment) => attachment.url !== attachmentToRemove.url)
+    );
+  }, [setAttachments]);
 
   return (
     <div className="relative w-full flex flex-col gap-4">
@@ -198,6 +226,7 @@ function PureMultimodalInput({
         className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
         ref={fileInputRef}
         multiple
+        accept=".jpg,.jpeg,.png,.pdf"
         onChange={handleFileChange}
         tabIndex={-1}
       />
@@ -205,7 +234,11 @@ function PureMultimodalInput({
       {(attachments.length > 0 || uploadQueue.length > 0) && (
         <div className="flex flex-row gap-2 overflow-x-scroll items-end">
           {attachments.map((attachment) => (
-            <PreviewAttachment key={attachment.url} attachment={attachment} />
+            <PreviewAttachment 
+              key={attachment.url} 
+              attachment={attachment} 
+              onRemove={() => handleRemoveAttachment(attachment)}
+            />
           ))}
 
           {uploadQueue.map((filename) => (
