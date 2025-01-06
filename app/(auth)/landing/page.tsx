@@ -123,7 +123,7 @@ function GetStarted() {
     <BentoCard
       title="Get Started"
       icon={BarChart}
-      description={"Experience the power of minimalistic AI search with KukaChat."}
+      description={"Satu Alat AI Untuk semua yang kamu butuhkan"}
       className="col-span-full sm:col-span-1 sm:row-span-2 dark:text-neutral-950"
       gradient="from-blue-700 via-60% via-blue-600 to-cyan-600"
     >
@@ -146,22 +146,22 @@ function MinimalisticSearch() {
     <BentoCard
       title="Minimalistic Search"
       icon={Search}
-      description="We strip away the clutter to focus on what matters most - delivering accurate and relevant results."
+      description="Kami menghilangkan kekacauan untuk fokus pada hal yang paling penting - memberikan hasil yang akurat dan relevan"
       gradient="from-red-700 via-60% via-red-600 to-rose-600"
       className="group col-span-full sm:col-span-1 dark:text-neutral-950"
     >
       <div className="mt-2 sm:mt-4 space-y-1 sm:space-y-2">
         <div className="flex items-center">
           <CircleDot size={12} className="text-red-400 mr-1 sm:mr-2 sm:w-4 sm:h-4" />
-          <span className="text-xs sm:text-sm">Clean interface</span>
+          <span className="text-xs sm:text-sm">Chat dengan Banyak LLm terbaik</span>
         </div>
         <div className="flex items-center">
           <CircleDot size={12} className="text-red-400 mr-1 sm:mr-2 sm:w-4 sm:h-4" />
-          <span className="text-xs sm:text-sm">Focused results</span>
+          <span className="text-xs sm:text-sm">Membuat Gambar</span>
         </div>
         <div className="flex items-center">
           <CircleDot size={12} className="text-red-400 mr-1 sm:mr-2 sm:w-4 sm:h-4" />
-          <span className="text-xs sm:text-sm">Distraction-free</span>
+          <span className="text-xs sm:text-sm">Asisten Penulis yang handal</span>
         </div>
       </div>
     </BentoCard>
@@ -720,7 +720,7 @@ const LandingPage: React.FC = () => {
                 initial="hidden"
                 animate="visible"
               >
-                A minimalistic AI search engine designed to deliver answers in the simplest and most elegant way possible.✨
+                One Tools for all✨
               </motion.p>
               <motion.div
                 className="flex flex-col items-center space-y-6"
