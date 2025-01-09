@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import {
-  Code2Icon,
+  TrendingUpIcon,
   ImageIcon,
   MessagesSquareIcon,
   PencilRulerIcon,
@@ -15,22 +15,31 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface ToolItem {
   name: string;
   icon: React.ReactNode;
   description: string;
   action: () => void;
+  path?: string;
 }
 
 export function SidebarTools() {
   const [isOpen, setIsOpen] = useState(true);
+  const router = useRouter();
+
+  const navigateToTool = (path: string) => {
+    router.push(path);
+  };
+
   const tools: ToolItem[] = [
     {
-      name: 'Code Assistant',
-      icon: <Code2Icon className="w-4 h-4" />,
-      description: 'Help with coding and development',
-      action: () => console.log('Code Assistant clicked'),
+      name: 'Stock Bot',
+      icon: <TrendingUpIcon className="w-4 h-4" />,
+      description: 'AI-powered stock trading assistant',
+      path: '/stock',
+      action: () => navigateToTool('/stock'),
     },
     {
       name: 'Image Generator',
@@ -48,7 +57,8 @@ export function SidebarTools() {
       name: 'AI Chat',
       icon: <MessagesSquareIcon className="w-4 h-4" />,
       description: 'Chat with AI assistant',
-      action: () => console.log('AI Chat clicked'),
+      path: '/',
+      action: () => navigateToTool('/'),
     },
   ];
 
@@ -79,7 +89,7 @@ export function SidebarTools() {
           <Button
             key={tool.name}
             variant="ghost"
-            className="w-full justify-start gap-2"
+            className="w-full justify-start gap-2 transition-colors"
             onClick={tool.action}
           >
             {tool.icon}
