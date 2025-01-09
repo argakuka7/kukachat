@@ -2,9 +2,13 @@
 
 import type { User } from 'next-auth';
 import { useRouter } from 'next/navigation';
-
+import { NavMain } from './nav-main';
+import { NavProjects } from './nav-projects';
+import { NavSecondary } from './nav-secondary';
+import { NavUser } from './nav-user'
 import { PlusIcon } from '@/components/icons';
 import { SidebarHistory } from '@/components/sidebar-history';
+import { SidebarTools } from '@/components/sidebar-tools';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,6 +63,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarTools />
         <SidebarHistory user={user} />
       </SidebarContent>
       <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
