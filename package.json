@@ -53,7 +53,8 @@
     "@vercel/blob": "^0.24.1",
     "@vercel/postgres": "^0.10.0",
     "add": "^2.0.6",
-    "ai": "4.0.20",
+    "ai": "^4.0.32",
+    "ai-stream": "^0.0.4",
     "bcrypt-ts": "^5.0.2",
     "class-variance-authority": "^0.7.1",
     "classnames": "^2.5.1",
@@ -71,6 +72,7 @@
     "next": "15.0.3-canary.2",
     "next-auth": "5.0.0-beta.25",
     "next-themes": "^0.3.0",
+    "openai-edge": "^1.2.2",
     "orderedmap": "^2.1.1",
     "postgres": "^3.4.4",
     "prosemirror-commands": "1.5.1",
@@ -101,7 +103,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "usehooks-ts": "^3.1.0",
-    "uuid": "^11.0.3",
+    "uuid": "^11.0.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
