@@ -44,6 +44,6 @@ export function MarketHeatmap() {
   }, []);
 
   return (
-    <div id="tradingview-market-heatmap" className="w-full h-[400px]" />
+    <div id="tradingview-market-heatmap" className="w-full h-[500px] min-h-[400px] overflow-auto sm:h-[600px] lg:h-[700px]" />
   );
 } 

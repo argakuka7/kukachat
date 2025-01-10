@@ -48,6 +48,6 @@ export function ETFHeatmap() {
   }, []);
 
   return (
-    <div id="tradingview-etf-heatmap" className="w-full h-[400px]" />
+    <div id="tradingview-etf-heatmap" className="w-full h-[500px] min-h-[400px] overflow-auto sm:h-[600px] lg:h-[700px]" />
   );
 } 

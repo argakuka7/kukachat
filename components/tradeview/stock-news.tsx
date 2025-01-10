@@ -42,6 +42,6 @@ export function StockNews({ symbol = 'NASDAQ:AAPL' }: StockNewsProps) {
   }, [symbol]);
 
   return (
-    <div id="tradingview-stock-news" className="w-full h-[500px]" />
+    <div id="tradingview-stock-news" className="w-full h-[500px] min-h-[400px] overflow-auto sm:h-[600px] lg:h-[700px]" />
   );
 } 

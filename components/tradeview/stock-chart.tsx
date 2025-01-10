@@ -54,6 +54,6 @@ export function StockChart({
   }, [symbol, interval]);
 
   return (
-    <div id="tradingview-stock-chart" className="w-full h-[600px]" />
+    <div id="tradingview-stock-chart" className="w-full h-[calc(100vh-6rem)] min-h-[400px] max-h-[800px] overflow-hidden" />
   );
 } 

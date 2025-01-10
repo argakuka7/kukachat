@@ -53,6 +53,6 @@ export function StockPrice({ symbol = 'NASDAQ:AAPL' }: StockPriceProps) {
   }, [symbol]);
 
   return (
-    <div id="tradingview-stock-price" className="w-full h-[150px]" />
+    <div id="tradingview-stock-price" className="w-full h-[150px] min-h-[120px] overflow-hidden sm:h-[180px] lg:h-[200px]" />
   );
 } 

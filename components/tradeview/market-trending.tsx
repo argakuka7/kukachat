@@ -33,9 +33,9 @@ export function MarketTrending() {
     const container = document.getElementById('tradingview-market-trending');
     if (container) {
       const widget = document.createElement('div');
-      widget.className = 'tradingview-widget-container';
+      widget.className = 'tradingview-widget-container h-full w-full';
       const widgetDiv = document.createElement('div');
-      widgetDiv.className = 'tradingview-widget-container__widget';
+      widgetDiv.className = 'tradingview-widget-container__widget h-full w-full';
       widget.appendChild(widgetDiv);
       widget.appendChild(script);
       container.appendChild(widget);
@@ -50,6 +50,10 @@ export function MarketTrending() {
   }, []);
 
   return (
-    <div id="tradingview-market-trending" className="w-full h-[400px]" />
+    <div id="tradingview-market-trending" className="w-full h-[600px] min-h-[400px] relative">
+      <div className="absolute inset-0 overflow-y-auto">
+        <div className="h-full w-full" />
+      </div>
+    </div>
   );
 } 

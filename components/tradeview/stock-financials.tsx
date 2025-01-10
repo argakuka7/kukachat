@@ -51,6 +51,6 @@ export function StockFinancials({ symbol = 'NASDAQ:AAPL' }: StockFinancialsProps
   }, [symbol]);
 
   return (
-    <div id="tradingview-stock-financials" className="w-full h-[600px]" />
+    <div id="tradingview-stock-financials" className="w-full h-[600px] min-h-[500px] overflow-auto sm:h-[700px] lg:h-[800px]" />
   );
 } 
