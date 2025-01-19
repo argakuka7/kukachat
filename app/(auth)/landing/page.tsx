@@ -55,6 +55,7 @@ import { Tweet } from 'react-tweet'
 import Image from 'next/image';
 import { TweetGrid } from '@/components/ui/tweet-grid';
 import { Newspaper, XLogo, YoutubeLogo } from '@phosphor-icons/react';
+import { Pricing } from "@/components/ui/pricing-section-with-comparison";
 
 function BentoCard({
   title,
@@ -654,6 +655,10 @@ const LandingPage: React.FC = () => {
                     <div className="text-sm font-medium">Features</div>
                     <p className="text-sm text-muted-foreground">Discover the powerful capabilities of KukaChat.</p>
                   </NavItem>
+                  <NavItem href="#pricing">
+                    <div className="text-sm font-medium">Pricing</div>
+                    <p className="text-sm text-muted-foreground">Simple and transparent pricing plans.</p>
+                  </NavItem>
                   <NavItem href="#tech-stack">
                     <div className="text-sm font-medium">Tech Stack</div>
                     <p className="text-sm text-muted-foreground">Explore the technologies powering KukaChat.</p>
@@ -692,6 +697,7 @@ const LandingPage: React.FC = () => {
               <ul className="space-y-4">
                 <MobileNavItem href="#about-us" onClick={() => setIsMenuOpen(false)}>About Us</MobileNavItem>
                 <MobileNavItem href="#features" onClick={() => setIsMenuOpen(false)}>Features</MobileNavItem>
+                <MobileNavItem href="#pricing" onClick={() => setIsMenuOpen(false)}>Pricing</MobileNavItem>
                 <MobileNavItem href="#tech-stack" onClick={() => setIsMenuOpen(false)}>Tech Stack</MobileNavItem>
                 <MobileNavItem href="#testimonials" onClick={() => setIsMenuOpen(false)}>Testimonials</MobileNavItem>
                 <MobileNavItem href="#try-it" onClick={() => setIsMenuOpen(false)}>Try It</MobileNavItem>
@@ -773,6 +779,10 @@ const LandingPage: React.FC = () => {
           </div>
         </section>
 
+        <section id="pricing" className="w-full bg-background">
+          <Pricing />
+        </section>
+
         <TestimonialSection />
         <MarqueeTestimonials />
 
@@ -795,12 +805,6 @@ const LandingPage: React.FC = () => {
                   <NextLink href="/login">
                     Try KukaChat
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                  </NextLink>
-                </Button>
-                <Button variant="outline" size="lg" asChild className="group transition-all duration-300 hover:shadow-lg hover:shadow-primary/20">
-                  <NextLink href="https://git.new/mplx" target="_blank" rel="noopener noreferrer">
-                    <Github className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
-                    View on GitHub
                   </NextLink>
                 </Button>
               </AnimatedSection>
