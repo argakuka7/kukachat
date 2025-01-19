@@ -186,13 +186,45 @@ function PureMultimodalInput({
           (attachment) => attachment !== undefined,
         );
 
-        if (successfullyUploadedAttachments.length > 0) {
-          toast.success(`Successfully uploaded ${successfullyUploadedAttachments.length} file(s)`);
+        // Process PDFs with LLM
+        const processedAttachments = await Promise.all(
+          successfullyUploadedAttachments.map(async (attachment) => {
+            if (attachment.contentType === 'application/pdf') {
+              try {
+                const response = await fetch('/api/llm/process-pdf', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ url: attachment.url }),
+                });
+
+                if (!response.ok) {
+                  throw new Error('Failed to process PDF');
+                }
+
+                const result = await response.json();
+                return {
+                  ...attachment,
+                  llmData: result.data,
+                };
+              } catch (error) {
+                console.error('Error processing PDF:', error);
+                toast.error(`Failed to process PDF: ${attachment.name}`);
+                return attachment;
+              }
+            }
+            return attachment;
+          }),
+        );
+
+        if (processedAttachments.length > 0) {
+          toast.success(`Successfully processed ${processedAttachments.length} file(s)`);
         }
 
         setAttachments((currentAttachments) => [
           ...currentAttachments,
-          ...successfullyUploadedAttachments,
+          ...processedAttachments,
         ]);
       } catch (error) {
         console.error('Error uploading files!', error);
