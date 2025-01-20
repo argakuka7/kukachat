@@ -6,6 +6,7 @@ import type {
   CreateMessage,
   Message,
 } from 'ai';
+import type { CustomAttachment } from '@/lib/types';
 import cx from 'classnames';
 import type React from 'react';
 import {
@@ -49,8 +50,8 @@ function PureMultimodalInput({
   setInput: (value: string) => void;
   isLoading: boolean;
   stop: () => void;
-  attachments: Array<Attachment>;
-  setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
+  attachments: Array<CustomAttachment>;
+  setAttachments: Dispatch<SetStateAction<Array<CustomAttachment>>>;
   messages: Array<Message>;
   setMessages: Dispatch<SetStateAction<Array<Message>>>;
   append: (
@@ -142,19 +143,22 @@ function PureMultimodalInput({
         body: formData,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const { url, pathname, contentType } = data;
-
-        return {
-          url,
-          name: pathname,
-          contentType: contentType,
-        };
+      if (!response.ok) {
+        const { error } = await response.json();
+        toast.error(error || 'Failed to upload file');
+        return;
       }
-      const { error } = await response.json();
-      toast.error(error);
+
+      const data = await response.json();
+      const { url, pathname, contentType } = data;
+
+      return {
+        url,
+        name: pathname,
+        contentType: contentType || (file.name.endsWith('.csv') ? 'text/csv' : file.type),
+      };
     } catch (error) {
+      console.error('Upload error:', error);
       toast.error('Failed to upload file, please try again!');
     }
   };
@@ -162,18 +166,30 @@ function PureMultimodalInput({
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(event.target.files || []);
-      const maxSize = 10 * 1024 * 1024; // 10MB for PDFs, 5MB for images
-
+      
       // Validate files before upload
       const invalidFiles = files.filter(file => {
         const isPdf = file.type === 'application/pdf';
-        const maxAllowedSize = isPdf ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+        const isCsv = file.type === 'text/csv' || file.name.endsWith('.csv');
+        const maxAllowedSize = isPdf ? 10 * 1024 * 1024 : 
+                              isCsv ? 5 * 1024 * 1024 : 
+                              5 * 1024 * 1024; // 5MB default
+        
+        console.log('File validation:', {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          isPdf,
+          isCsv,
+          maxAllowedSize
+        });
+        
         return file.size > maxAllowedSize;
       });
 
       if (invalidFiles.length > 0) {
         const fileNames = invalidFiles.map(f => f.name).join(', ');
-        toast.error(`File(s) too large: ${fileNames}. PDFs must be under 10MB, images under 5MB.`);
+        toast.error(`File(s) too large: ${fileNames}. PDFs must be under 10MB, other files under 5MB.`);
         return;
       }
 
@@ -183,24 +199,35 @@ function PureMultimodalInput({
         const uploadPromises = files.map((file) => uploadFile(file));
         const uploadedAttachments = await Promise.all(uploadPromises);
         const successfullyUploadedAttachments = uploadedAttachments.filter(
-          (attachment) => attachment !== undefined,
+          (attachment): attachment is CustomAttachment => attachment !== undefined,
         );
 
-        // Process PDFs with LLM
+        // Only process PDFs automatically, not CSVs
         const processedAttachments = await Promise.all(
           successfullyUploadedAttachments.map(async (attachment) => {
             if (attachment.contentType === 'application/pdf') {
               try {
-                const response = await fetch('/api/llm/process-pdf', {
+                console.log('Processing PDF file:', {
+                  name: attachment.name,
+                  type: attachment.contentType,
+                  url: attachment.url
+                });
+
+                const response = await fetch('/api/llm/process-file', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                   },
-                  body: JSON.stringify({ url: attachment.url }),
+                  body: JSON.stringify({ 
+                    url: attachment.url,
+                    type: attachment.contentType,
+                    filename: attachment.name
+                  }),
                 });
 
                 if (!response.ok) {
-                  throw new Error('Failed to process PDF');
+                  const errorData = await response.json();
+                  throw new Error(errorData.error || `Failed to process ${attachment.name}`);
                 }
 
                 const result = await response.json();
@@ -209,8 +236,8 @@ function PureMultimodalInput({
                   llmData: result.data,
                 };
               } catch (error) {
-                console.error('Error processing PDF:', error);
-                toast.error(`Failed to process PDF: ${attachment.name}`);
+                console.error('Error processing file:', error);
+                toast.error(`Failed to process file: ${attachment.name}`);
                 return attachment;
               }
             }
@@ -239,7 +266,7 @@ function PureMultimodalInput({
     [setAttachments],
   );
 
-  const handleRemoveAttachment = useCallback((attachmentToRemove: Attachment) => {
+  const handleRemoveAttachment = useCallback((attachmentToRemove: CustomAttachment) => {
     setAttachments((currentAttachments) =>
       currentAttachments.filter((attachment) => attachment.url !== attachmentToRemove.url)
     );
@@ -258,7 +285,7 @@ function PureMultimodalInput({
         className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
         ref={fileInputRef}
         multiple
-        accept=".jpg,.jpeg,.png,.pdf"
+        accept=".jpg,.jpeg,.png,.pdf,.csv"
         onChange={handleFileChange}
         tabIndex={-1}
       />

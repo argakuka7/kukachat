@@ -9,14 +9,23 @@ const FileSchema = z.object({
   file: z
     .instanceof(Blob)
     .refine((file) => {
-      // Increase size limit for PDFs to 10MB, keep 5MB for images
-      const maxSize = file.type === 'application/pdf' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+      // Get file type, handle CSV files specifically
+      const type = file.type || '';
+      const isCSV = type === 'text/csv' || (type === 'application/octet-stream' && file instanceof File && file.name.endsWith('.csv'));
+      const isPDF = type === 'application/pdf';
+      
+      // Increase size limit for PDFs to 10MB, keep 5MB for others
+      const maxSize = isPDF ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
       return file.size <= maxSize;
     }, {
-      message: 'File size should be less than 5MB for images or 10MB for PDFs',
+      message: 'File size should be less than 5MB for most files or 10MB for PDFs',
     })
-    .refine((file) => ['image/jpeg', 'image/png', 'application/pdf'].includes(file.type), {
-      message: 'File type should be JPEG, PNG, or PDF',
+    .refine((file) => {
+      const type = file.type || '';
+      const isCSV = type === 'text/csv' || (type === 'application/octet-stream' && file instanceof File && file.name.endsWith('.csv'));
+      return ['image/jpeg', 'image/png', 'application/pdf'].includes(type) || isCSV;
+    }, {
+      message: 'File type should be JPEG, PNG, PDF, or CSV',
     }),
 });
 
@@ -33,7 +42,7 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as Blob;
+    const file = formData.get('file') as File | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -49,20 +58,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
 
-    // Get filename from formData since Blob doesn't have name property
-    const filename = (formData.get('file') as File).name;
+    // Handle CSV files specifically
+    const contentType = file.type || (file.name.endsWith('.csv') ? 'text/csv' : 'application/octet-stream');
     const fileBuffer = await file.arrayBuffer();
 
     try {
-      const data = await put(`${filename}`, fileBuffer, {
+      const data = await put(file.name, fileBuffer, {
         access: 'public',
+        contentType: contentType,
       });
 
-      return NextResponse.json(data);
+      return NextResponse.json({
+        url: data.url,
+        pathname: file.name,
+        contentType: contentType,
+      });
     } catch (error) {
+      console.error('Upload error:', error);
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
     }
   } catch (error) {
+    console.error('Request processing error:', error);
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 },

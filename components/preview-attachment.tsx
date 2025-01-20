@@ -1,17 +1,18 @@
-import type { Attachment } from 'ai';
 import { FileIcon, LoaderIcon } from './icons';
 import { cn } from '@/lib/utils';
+import type { CustomAttachment } from '@/lib/types';
 
 export const PreviewAttachment = ({
   attachment,
   isUploading = false,
   onRemove,
 }: {
-  attachment: Attachment;
+  attachment: CustomAttachment;
   isUploading?: boolean;
   onRemove?: () => void;
 }) => {
   const { name, url, contentType } = attachment;
+  const isCSV = contentType === 'text/csv' || (contentType === 'application/octet-stream' && name?.endsWith('.csv'));
 
   return (
     <div className="group relative">
@@ -39,7 +40,7 @@ export const PreviewAttachment = ({
                   </button>
                 )}
               </div>
-            ) : contentType === 'application/pdf' ? (
+            ) : contentType === 'application/pdf' || isCSV ? (
               <a 
                 href={url} 
                 target="_blank" 
@@ -47,6 +48,9 @@ export const PreviewAttachment = ({
                 className="flex flex-col items-center justify-center w-full h-full hover:bg-black/5 transition-colors"
               >
                 <FileIcon className="w-8 h-8 text-zinc-500" />
+                <span className="text-xs text-zinc-500 mt-1">
+                  {isCSV ? 'CSV' : 'PDF'}
+                </span>
                 {onRemove && !isUploading && (
                   <button
                     onClick={(e) => {
@@ -68,21 +72,21 @@ export const PreviewAttachment = ({
                 <FileIcon className="w-8 h-8 text-zinc-500" />
               </div>
             )
-          ) : (
+          ) : isUploading ? (
             <div className="flex items-center justify-center w-full h-full">
-              <FileIcon className="w-8 h-8 text-zinc-500" />
+              <LoaderIcon className="w-4 h-4 animate-spin" />
             </div>
-          )}
-
-          {isUploading && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
-              <div className="animate-spin text-white">
-                <LoaderIcon className="w-6 h-6" />
-              </div>
-            </div>
-          )}
+          ) : null}
         </div>
-        <div className="text-xs text-zinc-500 max-w-16 truncate px-1">{name}</div>
+        {name && (
+          <p className="text-xs text-zinc-500 truncate max-w-[5rem]">{name}</p>
+        )}
+        {/* Only show LLM results for PDFs, not for CSVs */}
+        {attachment.llmData && !isCSV && (
+          <div className="absolute left-24 top-0 w-80 p-2 bg-muted rounded-lg border border-border">
+            <p className="text-xs whitespace-pre-wrap">{attachment.llmData}</p>
+          </div>
+        )}
       </div>
     </div>
   );
