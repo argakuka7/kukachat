@@ -7,6 +7,7 @@ import { memo, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 
 import type { Vote } from '@/lib/db/schema';
+import type { CustomAttachment } from '@/lib/types';
 
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { PencilEditIcon, SparklesIcon } from './icons';
@@ -21,6 +22,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { MessageEditor } from './message-editor';
 import { DocumentPreview } from './document-preview';
 import { ImagePreview } from './image-preview';
+
+function ensureCustomAttachment(attachment: any): CustomAttachment | null {
+  if (!attachment?.name) return null;
+  return {
+    url: attachment.url || '',
+    name: attachment.name,
+    contentType: attachment.contentType || 'application/octet-stream',
+    llmData: undefined
+  };
+}
 
 const PurePreviewMessage = ({
   chatId,
@@ -75,12 +86,16 @@ const PurePreviewMessage = ({
           <div className="flex flex-col gap-2 w-full">
             {message.experimental_attachments && (
               <div className="flex flex-row justify-end gap-2">
-                {message.experimental_attachments.map((attachment) => (
-                  <PreviewAttachment
-                    key={attachment.url}
-                    attachment={attachment}
-                  />
-                ))}
+                {message.experimental_attachments.map((attachment) => {
+                  const customAttachment = ensureCustomAttachment(attachment);
+                  if (!customAttachment) return null;
+                  return (
+                    <PreviewAttachment
+                      key={customAttachment.url}
+                      attachment={customAttachment}
+                    />
+                  );
+                })}
               </div>
             )}
 
