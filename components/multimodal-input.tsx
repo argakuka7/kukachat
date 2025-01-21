@@ -50,8 +50,8 @@ function PureMultimodalInput({
   setInput: (value: string) => void;
   isLoading: boolean;
   stop: () => void;
-  attachments: Array<CustomAttachment>;
-  setAttachments: Dispatch<SetStateAction<Array<CustomAttachment>>>;
+  attachments: Array<Attachment>;
+  setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
   messages: Array<Message>;
   setMessages: Dispatch<SetStateAction<Array<Message>>>;
   append: (
@@ -177,6 +177,18 @@ function PureMultimodalInput({
     }
   };
 
+  const convertedAttachments = attachments
+    .map(attachment => {
+      if (!attachment.name) return null;
+      return {
+        url: attachment.url || '',
+        name: attachment.name,
+        contentType: attachment.contentType || 'application/octet-stream',
+        llmData: undefined
+      } as CustomAttachment;
+    })
+    .filter((a): a is CustomAttachment => a !== null);
+
   return (
     <div className={cx('relative flex flex-col w-full gap-4', className)}>
       {messages.length === 0 && !isLoading && input.length === 0 && (
@@ -186,15 +198,15 @@ function PureMultimodalInput({
       )}
 
       <div className="flex flex-col flex-grow">
-        {attachments.length > 0 && (
+        {convertedAttachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
-            {attachments.map((attachment) => (
+            {convertedAttachments.map((attachment) => (
               <PreviewAttachment
                 key={attachment.url}
                 attachment={attachment}
                 onRemove={() => {
                   setAttachments((prev) =>
-                    prev.filter((a) => a.url !== attachment.url),
+                    prev.filter((a) => a.url !== attachment.url)
                   );
                 }}
               />

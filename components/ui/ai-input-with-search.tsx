@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAutoResizeTextarea } from "@/components/hooks/use-auto-resize-textarea";
+import { useLocalStorage } from "usehooks-ts";
 
 interface AIInputWithSearchProps {
   id?: string;
@@ -35,7 +36,8 @@ export function AIInputWithSearch({
     minHeight,
     maxHeight,
   });
-  const [showSearch, setShowSearch] = useState(true);
+  
+  const [showSearch, setShowSearch] = useLocalStorage("ai-search-enabled", false);
 
   const handleSubmit = () => {
     const trimmedValue = (value ?? internalValue).trim();

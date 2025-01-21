@@ -351,12 +351,12 @@ function PureBlock({
                     handleSubmit={handleSubmit}
                     isLoading={isLoading}
                     stop={stop}
-                    attachments={attachments.map(ensureCustomAttachment).filter((a): a is CustomAttachment => a !== undefined)}
-                    setAttachments={setAttachments as Dispatch<SetStateAction<CustomAttachment[]>>}
+                    attachments={attachments}
+                    setAttachments={setAttachments}
                     messages={messages}
+                    setMessages={setMessages}
                     append={append}
                     className="bg-background dark:bg-muted"
-                    setMessages={setMessages}
                   />
                 </form>
               </div>
