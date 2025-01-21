@@ -34,6 +34,7 @@ import { Console } from './console';
 import { useSidebar } from './ui/sidebar';
 import { useBlock } from '@/hooks/use-block';
 import equal from 'fast-deep-equal';
+import type { CustomAttachment } from '@/lib/types';
 
 export type BlockKind = 'text' | 'code';
 
@@ -56,6 +57,17 @@ export interface ConsoleOutput {
   id: string;
   status: 'in_progress' | 'completed' | 'failed';
   content: string | null;
+}
+
+function ensureCustomAttachment(attachment: Attachment): CustomAttachment | undefined {
+  if (!attachment.name) return undefined;
+  
+  return {
+    url: attachment.url || '',
+    name: attachment.name,
+    contentType: attachment.contentType || 'application/octet-stream',
+    llmData: undefined
+  };
 }
 
 function PureBlock({
@@ -339,8 +351,8 @@ function PureBlock({
                     handleSubmit={handleSubmit}
                     isLoading={isLoading}
                     stop={stop}
-                    attachments={attachments}
-                    setAttachments={setAttachments}
+                    attachments={attachments.map(ensureCustomAttachment).filter((a): a is CustomAttachment => a !== undefined)}
+                    setAttachments={setAttachments as Dispatch<SetStateAction<CustomAttachment[]>>}
                     messages={messages}
                     append={append}
                     className="bg-background dark:bg-muted"
