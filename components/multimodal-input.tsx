@@ -27,7 +27,7 @@ import { sanitizeUIMessages } from '@/lib/utils';
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
+import { AIInputWithSearch } from './ui/ai-input-with-search';
 import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
 
@@ -66,21 +66,8 @@ function PureMultimodalInput({
   ) => void;
   className?: string;
 }) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      adjustHeight();
-    }
-  }, []);
-
-  const adjustHeight = () => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`;
-    }
-  };
+  const [showSearch, setShowSearch] = useState(true);
 
   const [localStorageInput, setLocalStorageInput] = useLocalStorage(
     'input',
@@ -88,30 +75,23 @@ function PureMultimodalInput({
   );
 
   useEffect(() => {
-    if (textareaRef.current) {
-      const domValue = textareaRef.current.value;
-      // Prefer DOM value over localStorage to handle hydration
-      const finalValue = domValue || localStorageInput || '';
-      setInput(finalValue);
-      adjustHeight();
-    }
-    // Only run once after hydration
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const finalValue = localStorageInput || '';
+    setInput(finalValue);
   }, []);
 
   useEffect(() => {
     setLocalStorageInput(input);
   }, [input, setLocalStorageInput]);
 
-  const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(event.target.value);
-    adjustHeight();
-  };
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
   const submitForm = useCallback(() => {
+    if (isLoading) {
+      toast.error('Please wait for the model to finish its response!');
+      return;
+    }
+
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
     handleSubmit(undefined, {
@@ -120,18 +100,52 @@ function PureMultimodalInput({
 
     setAttachments([]);
     setLocalStorageInput('');
-
-    if (width && width > 768) {
-      textareaRef.current?.focus();
-    }
   }, [
     attachments,
     handleSubmit,
     setAttachments,
     setLocalStorageInput,
-    width,
     chatId,
+    isLoading,
   ]);
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    
+    // Validate files before upload
+    const invalidFiles = files.filter(file => {
+      const isPdf = file.type === 'application/pdf';
+      const isCsv = file.type === 'text/csv' || file.name.endsWith('.csv');
+      const maxAllowedSize = isPdf ? 10 * 1024 * 1024 : 
+                            isCsv ? 5 * 1024 * 1024 : 
+                            5 * 1024 * 1024; // 5MB default
+      
+      return file.size > maxAllowedSize;
+    });
+
+    if (invalidFiles.length > 0) {
+      const fileNames = invalidFiles.map(f => f.name).join(', ');
+      toast.error(`File(s) too large: ${fileNames}. PDFs must be under 10MB, other files under 5MB.`);
+      return;
+    }
+
+    setUploadQueue(files.map((file) => file.name));
+
+    try {
+      const uploadPromises = files.map((file) => uploadFile(file));
+      const uploadedAttachments = await Promise.all(uploadPromises);
+      const successfullyUploadedAttachments = uploadedAttachments.filter(
+        (attachment): attachment is CustomAttachment => attachment !== undefined,
+      );
+
+      setAttachments(prev => [...prev, ...successfullyUploadedAttachments]);
+      setUploadQueue([]);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload files, please try again!');
+      setUploadQueue([]);
+    }
+  };
 
   const uploadFile = async (file: File) => {
     const formData = new FormData();
@@ -163,210 +177,74 @@ function PureMultimodalInput({
     }
   };
 
-  const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
-      
-      // Validate files before upload
-      const invalidFiles = files.filter(file => {
-        const isPdf = file.type === 'application/pdf';
-        const isCsv = file.type === 'text/csv' || file.name.endsWith('.csv');
-        const maxAllowedSize = isPdf ? 10 * 1024 * 1024 : 
-                              isCsv ? 5 * 1024 * 1024 : 
-                              5 * 1024 * 1024; // 5MB default
-        
-        console.log('File validation:', {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          isPdf,
-          isCsv,
-          maxAllowedSize
-        });
-        
-        return file.size > maxAllowedSize;
-      });
-
-      if (invalidFiles.length > 0) {
-        const fileNames = invalidFiles.map(f => f.name).join(', ');
-        toast.error(`File(s) too large: ${fileNames}. PDFs must be under 10MB, other files under 5MB.`);
-        return;
-      }
-
-      setUploadQueue(files.map((file) => file.name));
-
-      try {
-        const uploadPromises = files.map((file) => uploadFile(file));
-        const uploadedAttachments = await Promise.all(uploadPromises);
-        const successfullyUploadedAttachments = uploadedAttachments.filter(
-          (attachment): attachment is CustomAttachment => attachment !== undefined,
-        );
-
-        // Only process PDFs automatically, not CSVs
-        const processedAttachments = await Promise.all(
-          successfullyUploadedAttachments.map(async (attachment) => {
-            if (attachment.contentType === 'application/pdf') {
-              try {
-                console.log('Processing PDF file:', {
-                  name: attachment.name,
-                  type: attachment.contentType,
-                  url: attachment.url
-                });
-
-                const response = await fetch('/api/llm/process-file', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ 
-                    url: attachment.url,
-                    type: attachment.contentType,
-                    filename: attachment.name
-                  }),
-                });
-
-                if (!response.ok) {
-                  const errorData = await response.json();
-                  throw new Error(errorData.error || `Failed to process ${attachment.name}`);
-                }
-
-                const result = await response.json();
-                return {
-                  ...attachment,
-                  llmData: result.data,
-                };
-              } catch (error) {
-                console.error('Error processing file:', error);
-                toast.error(`Failed to process file: ${attachment.name}`);
-                return attachment;
-              }
-            }
-            return attachment;
-          }),
-        );
-
-        if (processedAttachments.length > 0) {
-          toast.success(`Successfully processed ${processedAttachments.length} file(s)`);
-        }
-
-        setAttachments((currentAttachments) => [
-          ...currentAttachments,
-          ...processedAttachments,
-        ]);
-      } catch (error) {
-        console.error('Error uploading files!', error);
-        toast.error('Failed to upload files. Please try again.');
-      } finally {
-        setUploadQueue([]);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ''; // Reset input for future uploads
-        }
-      }
-    },
-    [setAttachments],
-  );
-
-  const handleRemoveAttachment = useCallback((attachmentToRemove: CustomAttachment) => {
-    setAttachments((currentAttachments) =>
-      currentAttachments.filter((attachment) => attachment.url !== attachmentToRemove.url)
-    );
-  }, [setAttachments]);
-
   return (
-    <div className="relative w-full flex flex-col gap-4">
-      {messages.length === 0 &&
-        attachments.length === 0 &&
-        uploadQueue.length === 0 && (
+    <div className={cx('relative flex flex-col w-full gap-4', className)}>
+      {messages.length === 0 && !isLoading && input.length === 0 && (
+        <div className="w-full">
           <SuggestedActions append={append} chatId={chatId} />
-        )}
-
-      <input
-        type="file"
-        className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
-        ref={fileInputRef}
-        multiple
-        accept=".jpg,.jpeg,.png,.pdf,.csv"
-        onChange={handleFileChange}
-        tabIndex={-1}
-      />
-
-      {(attachments.length > 0 || uploadQueue.length > 0) && (
-        <div className="flex flex-row gap-2 overflow-x-scroll items-end">
-          {attachments.map((attachment) => (
-            <PreviewAttachment 
-              key={attachment.url} 
-              attachment={attachment} 
-              onRemove={() => handleRemoveAttachment(attachment)}
-            />
-          ))}
-
-          {uploadQueue.map((filename) => (
-            <PreviewAttachment
-              key={filename}
-              attachment={{
-                url: '',
-                name: filename,
-                contentType: '',
-              }}
-              isUploading={true}
-            />
-          ))}
         </div>
       )}
 
-      <Textarea
-        ref={textareaRef}
-        placeholder="Send a message..."
-        value={input}
-        onChange={handleInput}
-        className={cx(
-          'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700',
-          className,
+      <div className="flex flex-col flex-grow">
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {attachments.map((attachment) => (
+              <PreviewAttachment
+                key={attachment.url}
+                attachment={attachment}
+                onRemove={() => {
+                  setAttachments((prev) =>
+                    prev.filter((a) => a.url !== attachment.url),
+                  );
+                }}
+              />
+            ))}
+          </div>
         )}
-        rows={2}
-        autoFocus
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
 
-            if (isLoading) {
-              toast.error('Please wait for the model to finish its response!');
-            } else {
+        <div className="relative flex items-end w-full gap-2">
+          <AIInputWithSearch
+            value={input}
+            onChange={setInput}
+            placeholder="Message..."
+            onSubmit={(value, withSearch) => {
               submitForm();
-            }
-          }
-        }}
-      />
-
-      <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-        <AttachmentsButton fileInputRef={fileInputRef} isLoading={isLoading} />
-      </div>
-
-      <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
-        {isLoading ? (
-          <StopButton stop={stop} setMessages={setMessages} />
-        ) : (
-          <SendButton
-            input={input}
-            submitForm={submitForm}
-            uploadQueue={uploadQueue}
+            }}
+            onFileSelect={(file) => {
+              if (fileInputRef.current) {
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInputRef.current.files = dataTransfer.files;
+                handleFileChange({ target: fileInputRef.current } as ChangeEvent<HTMLInputElement>);
+              }
+            }}
+            className="flex-grow"
+            minHeight={24}
+            maxHeight={window.innerHeight * 0.75}
           />
-        )}
+
+          <input
+            ref={fileInputRef}
+            className="hidden"
+            type="file"
+            onChange={handleFileChange}
+            accept=".pdf,.csv"
+            multiple
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-export const MultimodalInput = memo(
-  PureMultimodalInput,
-  (prevProps, nextProps) => {
-    if (prevProps.input !== nextProps.input) return false;
-    if (prevProps.isLoading !== nextProps.isLoading) return false;
-    if (!equal(prevProps.attachments, nextProps.attachments)) return false;
-
-    return true;
-  },
-);
+export const MultimodalInput = memo(PureMultimodalInput, (prevProps, nextProps) => {
+  return (
+    prevProps.input === nextProps.input &&
+    prevProps.isLoading === nextProps.isLoading &&
+    equal(prevProps.attachments, nextProps.attachments) &&
+    equal(prevProps.messages, nextProps.messages)
+  );
+});
 
 function PureAttachmentsButton({
   fileInputRef,
